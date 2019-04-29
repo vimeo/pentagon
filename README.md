@@ -9,14 +9,14 @@ Pentagon requires a simple YAML configuration file, the path to which should be 
 
 ```yaml
 vault:
-      url: <url to vault>
-      authType: token # currently only token is allowed
-      token: <token value>
-    namespace: <kubernetes namespace for created secrets>
-    label: <label value to set for the 'pentagon' get for created secrets>
-    mappings:
-      # mappings from vault paths to kubernetes secret names
-      secret/data/vault-path: k8s-secretname
+  url: <url to vault>
+  authType: token # currently only token is allowed
+  token: <token value>
+namespace: <kubernetes namespace for created secrets>
+label: <label value to set for the 'pentagon' get for created secrets>
+mappings:
+  # mappings from vault paths to kubernetes secret names
+  secret/data/vault-path: k8s-secretname
 ```
 
 ## Return Values
