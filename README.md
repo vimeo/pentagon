@@ -1,5 +1,5 @@
 # Pentagon
-Pentagon is a small application designed to run as a Kubernetes CronJob to periodically copy secrets stored in [Vault](https://www.vaultproject.io) into equivalent [Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/), keeping them synchronized.  Naturally, this should be used with care as "standard" Kubernetes Secrets are simply obfuscated as base64-encoded strings.  However, one can and should use more secure methods of securing secrets including Google's KMS and restricting roles and service accounts appropriately.
+Pentagon is a small application designed to run as a Kubernetes CronJob to periodically copy secrets stored in [Vault](https://www.vaultproject.io) into equivalent [Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/), keeping them synchronized.  Naturally, this should be used with care as "standard" Kubernetes Secrets are simply obfuscated as base64-encoded strings.  However, one can and should use more secure methods of securing secrets including Google's [KMS](https://cloud.google.com/kms/) and restricting roles and service accounts appropriately.
 
 Use at your own risk...
 
