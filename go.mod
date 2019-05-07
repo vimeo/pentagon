@@ -3,7 +3,10 @@ module github.com/vimeo/pentagon
 go 1.12
 
 require (
+	cloud.google.com/go v0.26.0
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
+	github.com/elazarl/goproxy v0.0.0-20190421051319-9d40249d3c2f // indirect
+	github.com/elazarl/goproxy/ext v0.0.0-20190421051319-9d40249d3c2f // indirect
 	github.com/hashicorp/vault/api v1.0.1
 	github.com/imdario/mergo v0.3.7 // indirect
 	gopkg.in/yaml.v2 v2.2.1
