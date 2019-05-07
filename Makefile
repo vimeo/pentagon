@@ -14,22 +14,8 @@ build/darwin/pentagon: $(DEPS)
 	mkdir -p build/darwin
 	GOOS=darwin go build $(GOMOD_RO_FLAG) -v -ldflags=$(LDFLAGS) -o ./build/darwin/pentagon ./pentagon
 
-.PHONY: go_mod_cache
-go_mod_cache: go.mod go.sum
-	GO111MODULE=on go mod download
-
-vendor/gomod_deps: go.mod go.sum
-	mkdir -p vendor/gomod_deps
-	readonly GOPATH=$$(mktemp -d); GO111MODULE=on go mod download && \
-			   chmod -R 'u+wr' "vendor/gomod_deps" && \
-			   rm -rf vendor/gomod_deps/mod; \
-			   mkdir vendor/gomod_deps/mod && \
-			   cp -r $${GOPATH}/pkg/mod/cache vendor/gomod_deps/mod/cache; \
-			   chmod -R 'u+wr' "vendor/gomod_deps/mod" "$${GOPATH}"; \
-			   rm -rf "$${GOPATH}"
-
 .PHONY: docker
-docker: Dockerfile $(DEPS) vendor/gomod_deps
+docker: Dockerfile $(DEPS)
 	docker build . -t pentagon:${RepoTag}
 
 .PHONY: test
