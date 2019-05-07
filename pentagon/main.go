@@ -97,6 +97,11 @@ func getVaultClient(vaultConfig pentagon.VaultConfig) (*api.Client, error) {
 		if err != nil {
 			return nil, fmt.Errorf("unable to set token via gcp: %s", err)
 		}
+	default:
+		return nil, fmt.Errorf(
+			"unsupported vault auth type: %s",
+			vaultConfig.AuthType,
+		)
 	}
 
 	return client, nil
