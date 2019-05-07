@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vimeo/pentagon"
 	yaml "gopkg.in/yaml.v2"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -12,6 +11,8 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/vimeo/pentagon"
 )
 
 type pentagonJob struct {
