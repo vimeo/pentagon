@@ -9,10 +9,11 @@ import (
 
 	"cloud.google.com/go/compute/metadata"
 	"github.com/hashicorp/vault/api"
-	"github.com/vimeo/pentagon"
 	yaml "gopkg.in/yaml.v2"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+
+	"github.com/vimeo/pentagon"
 )
 
 func main() {

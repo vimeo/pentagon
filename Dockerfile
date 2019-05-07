@@ -11,16 +11,17 @@ ENV GO111MODULE on
 RUN mkdir -p /go/src/github.com/vimeo/pentagon /go/pkg/
 COPY --chown=pentagon . /go/src/github.com/vimeo/pentagon/
 
-# Copy the vendored gomod_deps directly to /go/pkg/mod
-COPY --chown=pentagon ./vendor/gomod_deps/mod /go/pkg/mod
-
 WORKDIR /go/src/github.com/vimeo/pentagon/
 
 RUN make GOMOD_RO_FLAG='-mod=readonly' build/linux/pentagon
 
 FROM alpine
 USER root
+RUN adduser -D pentagon
 RUN apk add --no-cache ca-certificates
 RUN mkdir -p /app
 COPY --from=builder /go/src/github.com/vimeo/pentagon/build/linux/pentagon /app/pentagon
+
+# drop privileges again
+USER pentagon
 ENTRYPOINT ["/app/pentagon"]

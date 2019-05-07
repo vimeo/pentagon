@@ -3,11 +3,12 @@ package pentagon
 import (
 	"testing"
 
-	"github.com/vimeo/pentagon/vault"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+
+	"github.com/vimeo/pentagon/vault"
 )
 
 func TestReflectorSimple(t *testing.T) {
