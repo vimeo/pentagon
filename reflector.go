@@ -32,7 +32,7 @@ func NewReflector(
 	}
 }
 
-// Reflector moves things from vault to kuberenetes
+// Reflector moves things from vault to kubernetes
 type Reflector struct {
 	vaultClient  vault.Logical
 	k8sClient    kubernetes.Interface
