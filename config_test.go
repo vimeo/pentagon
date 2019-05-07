@@ -3,7 +3,11 @@ package pentagon
 import "testing"
 
 func TestSetDefaults(t *testing.T) {
-	c := &Config{}
+	c := &Config{
+		Vault: VaultConfig{
+			AuthType: VaultAuthTypeToken,
+		},
+	}
 
 	c.SetDefaults()
 	if c.Label != DefaultLabelValue {
