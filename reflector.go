@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/vimeo/pentagon/vault"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/vimeo/pentagon/vault"
 )
 
 // LabelKey is the name of label that will be attached to every secret created

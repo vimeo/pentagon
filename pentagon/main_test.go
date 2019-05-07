@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vimeo/pentagon"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -17,6 +16,8 @@ import (
 	"sigs.k8s.io/kind/pkg/cluster"
 	"sigs.k8s.io/kind/pkg/cluster/config"
 	"sigs.k8s.io/kind/pkg/cluster/create"
+
+	"github.com/vimeo/pentagon"
 )
 
 const testRootToken = "testroottoken"
