@@ -109,15 +109,13 @@ func getVaultClient(vaultConfig pentagon.VaultConfig) (*api.Client, error) {
 }
 
 func setVaultTokenViaGCP(vaultClient *api.Client, role string) error {
-	roleURL := fmt.Sprintf("http://vault/%s", role)
-
 	// just make a request directly to the metadata server rather
 	// than going through the APIs which don't seem to wrap this functionality
 	// in a terribly convenient way.
 	url := url.URL{
 		Path: "instance/service-accounts/default/identity",
 	}
-	url.Query().Add("audience", roleURL)
+	url.Query().Add("audience", role)
 	url.Query().Add("format", "full")
 
 	// `jwt` should be a base64-encoded jwt.
@@ -129,7 +127,7 @@ func setVaultTokenViaGCP(vaultClient *api.Client, role string) error {
 	vaultResp, err := vaultClient.Logical().Write(
 		"auth/gcp/login",
 		map[string]interface{}{
-			"role": roleURL,
+			"role": role,
 			"jwt":  jwt,
 		},
 	)
