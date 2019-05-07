@@ -1,10 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
+	"net/url"
 	"os"
 
+	"cloud.google.com/go/compute/metadata"
 	"github.com/hashicorp/vault/api"
 	"github.com/vimeo/pentagon"
 	yaml "gopkg.in/yaml.v2"
@@ -87,9 +90,49 @@ func getVaultClient(vaultConfig pentagon.VaultConfig) (*api.Client, error) {
 	}
 
 	switch vaultConfig.AuthType {
-	case "token":
+	case pentagon.VaultAuthTypeToken:
 		client.SetToken(vaultConfig.Token)
+	case pentagon.VaultAuthTypeGCPDefault:
+		err := setVaultTokenViaGCP(client, vaultConfig.Role)
+		if err != nil {
+			return nil, fmt.Errorf("unable to set token via gcp: %s", err)
+		}
 	}
 
 	return client, nil
+}
+
+func setVaultTokenViaGCP(vaultClient *api.Client, role string) error {
+	roleURL := fmt.Sprintf("http://vault/%s", role)
+
+	// just make a request directly to the metadata server rather
+	// than going through the APIs which don't seem to wrap this functionality
+	// in a terribly convenient way.
+	url := url.URL{
+		Path: "instance/service-accounts/default/identity",
+	}
+	url.Query().Add("audience", roleURL)
+	url.Query().Add("format", "full")
+
+	// `jwt` should be a base64-encoded jwt.
+	jwt, err := metadata.Get(url.String())
+	if err != nil {
+		return fmt.Errorf("error retrieving JWT from metadata API: %s", err)
+	}
+
+	vaultResp, err := vaultClient.Logical().Write(
+		"auth/gcp/login",
+		map[string]interface{}{
+			"role": roleURL,
+			"jwt":  jwt,
+		},
+	)
+
+	if err != nil {
+		return fmt.Errorf("error authenticating to vault via gcp: %s", err)
+	}
+
+	vaultClient.SetToken(vaultResp.Auth.ClientToken)
+
+	return nil
 }

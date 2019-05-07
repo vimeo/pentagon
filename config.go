@@ -7,6 +7,15 @@ const DefaultNamespace = "default"
 // created by pentagon.
 const DefaultLabelValue = "default"
 
+// VaultAuthTypeToken expects the Token property to be set on the VaultConfig
+// struct with a token to use.
+const VaultAuthTypeToken = "token"
+
+// VaultAuthTypeGCPDefault expects the Role property of the VaulConfig struct
+// to be populated with the role that vault expects and will use the machine's
+// default service account, running within GCP.
+const VaultAuthTypeGCPDefault = "gcp-default"
+
 // Config describes the configuration for vaultofsecrets
 type Config struct {
 	// VaultURL is the URL used to connect to vault.
@@ -26,7 +35,8 @@ type Config struct {
 // VaultConfig is the vault configuration.
 type VaultConfig struct {
 	URL      string `yaml:"url"`
-	AuthType string `yaml:"authType"`
+	AuthType string `yaml:"authType"` // token or gcp-default
+	Role     string `yaml:"role"`     // used for non-token auth
 	Token    string `yaml:"token"`
 }
 
