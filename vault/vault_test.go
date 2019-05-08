@@ -12,12 +12,8 @@ func TestWrite(t *testing.T) {
 		t.Fatalf("write errored: %s", err)
 	}
 
-	if data, ok := secret.Data["data"].(map[string]interface{}); ok {
-		if data["blah"] != "blah" {
-			t.Fatal("data was not equal!")
-		}
-	} else {
-		t.Fatal("inner data wasn't map[string]interface{}")
+	if secret.Data["blah"] != "blah" {
+		t.Fatal("data was not equal!")
 	}
 }
 
@@ -40,12 +36,8 @@ func TestRead(t *testing.T) {
 		t.Fatal("secret was nil")
 	}
 
-	if data, ok := secret.Data["data"].(map[string]interface{}); ok {
-		if data["blah"] != "blah" {
-			t.Fatal("data was not equal!")
-		}
-	} else {
-		t.Fatal("inner data wasn't map[string]interface{}")
+	if secret.Data["blah"] != "blah" {
+		t.Fatal("data was not equal!")
 	}
 }
 

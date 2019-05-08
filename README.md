@@ -1,5 +1,5 @@
 # Pentagon
-Pentagon is a small application designed to run as a Kubernetes CronJob to periodically copy secrets stored in [Vault](https://www.vaultproject.io) into equivalent [Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/), keeping them synchronized.  Naturally, this should be used with care as "standard" Kubernetes Secrets are simply obfuscated as base64-encoded strings.  However, one can and should use more secure methods of securing secrets including Google's [KMS](https://cloud.google.com/kms/) and restricting roles and service accounts appropriately.
+Pentagon is a small application designed to run as a Kubernetes CronJob to periodically copy secrets stored in [Vault](https://www.vaultproject.io) into equivalent [Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/), keeping them synchronized.  Naturally, this should be used with care as "standard" Kubernetes Secrets are simply obfuscated as base64-encoded strings.  However, one can and should use more secure methods of securing secrets including Google's [KMS](https://cloud.google.com/kubernetes-engine/docs/how-to/encrypting-secrets) and restricting roles and service accounts appropriately.
 
 Use at your own risk...
 
@@ -10,13 +10,16 @@ Pentagon requires a simple YAML configuration file, the path to which should be 
 ```yaml
 vault:
   url: <url to vault>
-  authType: token # currently only token is allowed
-  token: <token value>
+  authType: # "token" or "gcp-default"
+  token: <token value> # if authType == "token" is provided
+  role: "vault role" # if left empty, queries the GCP metadata service
+  tls: # optional [tls options](https://godoc.org/github.com/hashicorp/vault/api#TLSConfig)
 namespace: <kubernetes namespace for created secrets>
-label: <label value to set for the 'pentagon' get for created secrets>
+label: <label value to set for the 'pentagon'-created secrets>
 mappings:
   # mappings from vault paths to kubernetes secret names
-  secret/data/vault-path: k8s-secretname
+  - vaultPath: secret/data/vault-path
+    secretName: k8s-secretname
 ```
 
 ## Return Values
@@ -28,6 +31,95 @@ The application will return 0 on success (when all keys were copied/updated succ
 | 10 | Incorrect number of arguments. |
 | 20 | Error opening configuration file. |
 | 21 | Error parsing YAML configuration file. |
+| 22 | Configuration error. |
 | 30 | Unable to instantiate vault client. |
 | 31 | Unable to instantiate kubernetes client. |
 | 40 | Error copying keys. |
+
+## Kubernetes Configuration
+Pentagon is intended to be run as a cron job to periodically sync keys.  In order to create/update Kubernetes secrets extra permissions are required.  It is recommended to grant those extra permissions to a separate service account that the application also runs as to restrict access.  The following roles is a sample configuration:
+
+```yaml
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: pentagon
+spec:
+  schedule: "0 15 * * *"
+  concurrencyPolicy: Replace
+  jobTemplate:
+    metadata:
+      labels:
+        app: pentagon
+    spec:
+      parallelism: 1
+      completions: 1
+      template:
+        spec:
+          serviceAccountName: pentagon
+          terminationGracePeriodSeconds: 10
+          restartPolicy: OnFailure
+          containers:
+          - name: pentagon
+            image: vimeo/pentagon:v1.0.0
+            args: ["/etc/pentagon/pentagon.yaml"]
+            imagePullPolicy: Always
+            resources:
+              limits:
+                cpu: 250m
+                memory: 128Mi
+              requests:
+                cpu: 250m
+                memory: 128Mi
+            volumeMounts:
+                - name: pentagon-config
+                  mountPath: /etc/pentagon
+                  readOnly: true
+          volumes:
+              - name: pentagon-config
+                configMap:
+                  name: pentagon-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pentagon-config
+data:
+  pentagon.yaml: |
+    vault:
+      url: https://vault.address
+      authType: gcp-default
+      tls:
+        capath: /etc/cas/custom-root-ca.crt
+    label: mapped
+    mappings:
+      - vaultPath: secret/config/main/foo.key
+        secretName: foo-key
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: pentagon
+rules:
+- apiGroups: ["*"]
+  resources:
+  - secrets
+  verbs: ["get", "list", "create", "update", "delete"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pentagon
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: pentagon
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pentagon
+subjects:
+- kind: ServiceAccount
+  name: pentagon
+```
