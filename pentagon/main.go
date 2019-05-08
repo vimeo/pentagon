@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"strings"
 
 	"cloud.google.com/go/compute/metadata"
 	"github.com/hashicorp/vault/api"
@@ -40,6 +41,11 @@ func main() {
 	}
 
 	config.SetDefaults()
+
+	if err := config.Validate(); err != nil {
+		log.Printf("configuration error: %s", err)
+		os.Exit(22)
+	}
 
 	vaultClient, err := getVaultClient(config.Vault)
 	if err != nil {
@@ -82,10 +88,17 @@ func getK8sClient() (*kubernetes.Clientset, error) {
 }
 
 func getVaultClient(vaultConfig pentagon.VaultConfig) (*api.Client, error) {
-	client, err := api.NewClient(&api.Config{
-		Address: vaultConfig.URL,
-	})
+	c := api.DefaultConfig()
+	c.Address = vaultConfig.URL
 
+	// Set any TLS-specific options for vault if they were provided in the
+	// configuration.  The zero-value of the TLSConfig struct should be safe
+	// to use anyway.
+	if vaultConfig.TLSConfig != nil {
+		c.ConfigureTLS(vaultConfig.TLSConfig)
+	}
+
+	client, err := api.NewClient(c)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +107,18 @@ func getVaultClient(vaultConfig pentagon.VaultConfig) (*api.Client, error) {
 	case pentagon.VaultAuthTypeToken:
 		client.SetToken(vaultConfig.Token)
 	case pentagon.VaultAuthTypeGCPDefault:
-		err := setVaultTokenViaGCP(client, vaultConfig.Role)
+		// default to using configured Role
+		role := vaultConfig.Role
+
+		// if that's not provided, get it from the default service account
+		if role == "" {
+			role, err = getRoleViaGCP()
+			if err != nil {
+				return nil, fmt.Errorf("error getting role from gcp: %s", err)
+			}
+		}
+
+		err := setVaultTokenViaGCP(client, role)
 		if err != nil {
 			return nil, fmt.Errorf("unable to set token via gcp: %s", err)
 		}
@@ -108,18 +132,37 @@ func getVaultClient(vaultConfig pentagon.VaultConfig) (*api.Client, error) {
 	return client, nil
 }
 
+func getRoleViaGCP() (string, error) {
+	emailAddress, err := metadata.Get("instance/service-accounts/default/email")
+	if err != nil {
+		return "", fmt.Errorf("error getting default email address: %s", err)
+	}
+	components := strings.Split(emailAddress, "@")
+	return components[0], nil
+}
+
 func setVaultTokenViaGCP(vaultClient *api.Client, role string) error {
 	// just make a request directly to the metadata server rather
 	// than going through the APIs which don't seem to wrap this functionality
 	// in a terribly convenient way.
-	url := url.URL{
+	metadataURL := url.URL{
 		Path: "instance/service-accounts/default/identity",
 	}
-	url.Query().Add("audience", role)
-	url.Query().Add("format", "full")
+
+	values := url.Values{}
+	vaultAddress, err := url.Parse(vaultClient.Address())
+	if err != nil {
+		return fmt.Errorf("error parsing vault address: %s", err)
+	}
+	values.Add(
+		"audience",
+		fmt.Sprintf("%s/vault/%s", vaultAddress.Hostname(), role),
+	)
+	values.Add("format", "full")
+	metadataURL.RawQuery = values.Encode()
 
 	// `jwt` should be a base64-encoded jwt.
-	jwt, err := metadata.Get(url.String())
+	jwt, err := metadata.Get(metadataURL.String())
 	if err != nil {
 		return fmt.Errorf("error retrieving JWT from metadata API: %s", err)
 	}

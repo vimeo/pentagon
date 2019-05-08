@@ -323,7 +323,16 @@ func (it *integrationTests) secret(name string) (*v1.Secret, error) {
 	return it.client.CoreV1().Secrets(k8sNamespace).Get(name, metav1.GetOptions{})
 }
 
-func (it *integrationTests) quickConfig(label string, mappings map[string]string) *pentagon.Config {
+func (it *integrationTests) quickConfig(label string, quickMappings map[string]string) *pentagon.Config {
+	mappings := []pentagon.Mapping{}
+	for k, v := range quickMappings {
+		mapping := pentagon.Mapping{
+			VaultPath:  k,
+			SecretName: v,
+		}
+		mappings = append(mappings, mapping)
+	}
+
 	return &pentagon.Config{
 		Vault: pentagon.VaultConfig{
 			URL:      it.vaultInstance.url(),

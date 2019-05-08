@@ -35,3 +35,26 @@ func TestNoClobber(t *testing.T) {
 		t.Fatalf("namespace should still be bar, is %s", c.Namespace)
 	}
 }
+
+func TestValidate(t *testing.T) {
+	c := &Config{}
+	err := c.Validate()
+	if err == nil {
+		t.Fatal("configuration should have been invalid")
+	}
+
+	c = &Config{
+		Mappings: []Mapping{
+			Mapping{
+				VaultPath:  "foo",
+				SecretName: "bar",
+			},
+		},
+	}
+
+	err = c.Validate()
+	if err != nil {
+		t.Fatalf("configuration should have been valid: %s", err)
+	}
+
+}
