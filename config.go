@@ -1,5 +1,11 @@
 package pentagon
 
+import (
+	"fmt"
+
+	"github.com/hashicorp/vault/api"
+)
+
 // DefaultNamespace is the default kubernetes namespace.
 const DefaultNamespace = "default"
 
@@ -32,16 +38,8 @@ type Config struct {
 	// k8s secrets created by pentagon.
 	Label string `yaml:"label"`
 
-	// Mappings is the map of vault secret names to kubernetes secret names.
-	Mappings map[string]string `yaml:"mappings"`
-}
-
-// VaultConfig is the vault configuration.
-type VaultConfig struct {
-	URL      string        `yaml:"url"`
-	AuthType VaultAuthType `yaml:"authType"` // token or gcp-default
-	Role     string        `yaml:"role"`     // used for non-token auth
-	Token    string        `yaml:"token"`
+	// Mappings is a list of mappings.
+	Mappings []Mapping `yaml:"mappings"`
 }
 
 // SetDefaults sets defaults for the Namespace and Label in case they're
@@ -54,4 +52,46 @@ func (c *Config) SetDefaults() {
 	if c.Label == "" {
 		c.Label = DefaultLabelValue
 	}
+}
+
+// Validate checks to make sure that the configuration is valid.
+func (c *Config) Validate() error {
+	if c.Mappings == nil {
+		return fmt.Errorf("no mappings provided")
+	}
+
+	return nil
+}
+
+// VaultConfig is the vault configuration.
+type VaultConfig struct {
+	// URL is the url to the vault server.
+	URL string `yaml:"url"`
+
+	// AuthType can be "token" or "gcp-default".
+	AuthType VaultAuthType `yaml:"authType"`
+
+	// Role is the role used when authenticating with vault.  If this is unset
+	// the role will be discovered by querying the GCP metadata service for
+	// the default service account's email address and using the "user" portion
+	// (before the '@').
+	Role string `yaml:"role"` // used for non-token auth
+
+	// Token is a vault token and is only considered when AuthType == "token".
+	Token string `yaml:"token"`
+
+	// TLSConfig allows you to set any TLS options that the vault client
+	// accepts.
+	TLSConfig *api.TLSConfig `yaml:"tls"` // for other vault TLS options
+}
+
+// Mapping is a single mapping for a vault secret to a k8s secret.
+type Mapping struct {
+	// VaultPath is the path to the vault secret.
+	VaultPath string `yaml:"vaultPath"`
+
+	// SecretName is the name of the k8s secret that the vault contents should
+	// be written to.  Note that this must be a DNS-1123-compatible name and
+	// match the regex [a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*
+	SecretName string `yaml:"secretName"`
 }

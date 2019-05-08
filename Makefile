@@ -16,7 +16,7 @@ build/darwin/pentagon: $(DEPS)
 
 .PHONY: docker
 docker: Dockerfile $(DEPS)
-	docker build . -t pentagon:${RepoTag}
+	docker build . -t vimeo/pentagon:${RepoTag}
 
 .PHONY: test
 test:

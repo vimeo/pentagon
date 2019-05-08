@@ -42,7 +42,7 @@ type Reflector struct {
 
 // Reflect actually syncs the values between vault and k8s secrets based on
 // the mappings passed.
-func (r *Reflector) Reflect(mappings map[string]string) error {
+func (r *Reflector) Reflect(mappings []Mapping) error {
 
 	secrets := r.k8sClient.CoreV1().Secrets(r.k8sNamespace)
 
@@ -66,25 +66,22 @@ func (r *Reflector) Reflect(mappings map[string]string) error {
 	// reconcile later.
 	touchedSecrets := map[string]struct{}{}
 
-	for vaultKey, k8sKey := range mappings {
-		secretData, err := r.vaultClient.Read(vaultKey)
+	for _, mapping := range mappings {
+		secretData, err := r.vaultClient.Read(mapping.VaultPath)
 		if err != nil {
-			return fmt.Errorf("error reading vault key '%s': %s", vaultKey, err)
+			return fmt.Errorf(
+				"error reading vault key '%s': %s",
+				mapping.VaultPath,
+				err,
+			)
 		}
 
 		if secretData == nil {
-			return fmt.Errorf("secret %s not found", vaultKey)
-		}
-
-		// secretData.Data has another "data" map[string]interface{} in here...
-		// why? I don't know...
-		innerData, ok := secretData.Data["data"].(map[string]interface{})
-		if !ok {
-			return fmt.Errorf("inner 'data' isn't a map[string]interface{}")
+			return fmt.Errorf("secret %s not found", mapping.VaultPath)
 		}
 
 		// convert map[string]interface{} to map[string][]byte
-		k8sSecretData, err := r.castData(innerData)
+		k8sSecretData, err := r.castData(secretData.Data)
 		if err != nil {
 			return fmt.Errorf("error casting data: %s", err)
 		}
@@ -92,7 +89,7 @@ func (r *Reflector) Reflect(mappings map[string]string) error {
 		// create the new Secret
 		newSecret := &v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      k8sKey,
+				Name:      mapping.SecretName,
 				Namespace: r.k8sNamespace,
 				Labels: map[string]string{
 					LabelKey: r.labelValue,
@@ -101,7 +98,7 @@ func (r *Reflector) Reflect(mappings map[string]string) error {
 			Data: k8sSecretData,
 		}
 
-		if _, ok := secretsSet[k8sKey]; ok {
+		if _, ok := secretsSet[mapping.SecretName]; ok {
 			// secret already exists, so we should update it
 			_, err = secrets.Update(newSecret)
 			if err != nil {
@@ -117,8 +114,8 @@ func (r *Reflector) Reflect(mappings map[string]string) error {
 
 		log.Printf(
 			"reflected vault secret %s to kubernetes %s",
-			vaultKey,
-			k8sKey,
+			mapping.VaultPath,
+			mapping.SecretName,
 		)
 
 		// record the fact that we actually updated it
