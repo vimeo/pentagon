@@ -32,7 +32,7 @@ type integrationTests struct {
 }
 
 func TestIntegration(t *testing.T) {
-	// skipping as this needs significant setup...
+	// skipping as this needs significant setup and is not 100% automated
 	t.Skip()
 
 	// see if we're overriding from the outside
