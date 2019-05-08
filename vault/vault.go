@@ -40,18 +40,14 @@ func (m *Mock) Read(path string) (*api.Secret, error) {
 	return nil, nil
 }
 
-// Write writes secrets into the mock vault.  This is going to do the same
-// (weird) thing the client does, and wrap it in an additional
-// map[string]interface{} with data as the key.
+// Write writes secrets into the mock vault.
 func (m *Mock) Write(
 	path string,
 	data map[string]interface{},
 ) (*api.Secret, error) {
 
 	secret := &api.Secret{
-		Data: map[string]interface{}{
-			"data": data,
-		},
+		Data: data,
 	}
 
 	m.mu.Lock()

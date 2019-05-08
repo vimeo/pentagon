@@ -27,7 +27,12 @@ func TestReflectorSimple(t *testing.T) {
 		DefaultLabelValue,
 	)
 
-	err := r.Reflect(map[string]string{"secrets/data/foo": "foo"})
+	err := r.Reflect([]Mapping{
+		Mapping{
+			VaultPath:  "secrets/data/foo",
+			SecretName: "foo",
+		},
+	})
 	if err != nil {
 		t.Fatalf("reflect didn't work: %s", err)
 	}
@@ -78,12 +83,16 @@ func TestReflectorNoReconcile(t *testing.T) {
 	)
 
 	// reflect both secrets
-	err := r.Reflect(
-		map[string]string{
-			"secrets/data/foo1": "foo1",
-			"secrets/data/foo2": "foo2",
+	err := r.Reflect([]Mapping{
+		Mapping{
+			VaultPath:  "secrets/data/foo1",
+			SecretName: "foo1",
 		},
-	)
+		Mapping{
+			VaultPath:  "secrets/data/foo2",
+			SecretName: "foo2",
+		},
+	})
 	if err != nil {
 		t.Fatalf("reflect didn't work: %s", err)
 	}
@@ -103,11 +112,12 @@ func TestReflectorNoReconcile(t *testing.T) {
 
 	// reflect again, this time without foo2 -- it should still be there
 	// and not get reconciled because we're using the default label value.
-	err = r.Reflect(
-		map[string]string{
-			"secrets/data/foo1": "foo1",
+	err = r.Reflect([]Mapping{
+		Mapping{
+			VaultPath:  "secrets/data/foo1",
+			SecretName: "foo1",
 		},
-	)
+	})
 	if err != nil {
 		t.Fatalf("reflect didn't work the second time: %s", err)
 	}
@@ -158,12 +168,16 @@ func TestReflectorWithReconcile(t *testing.T) {
 
 	r := NewReflector(vaultClient, k8sClient, DefaultNamespace, "test")
 
-	err = r.Reflect(
-		map[string]string{
-			"secrets/data/foo1": "foo1",
-			"secrets/data/foo2": "foo2",
+	err = r.Reflect([]Mapping{
+		Mapping{
+			VaultPath:  "secrets/data/foo1",
+			SecretName: "foo1",
 		},
-	)
+		Mapping{
+			VaultPath:  "secrets/data/foo2",
+			SecretName: "foo2",
+		},
+	})
 	if err != nil {
 		t.Fatalf("reflect didn't work: %s", err)
 	}
@@ -174,7 +188,10 @@ func TestReflectorWithReconcile(t *testing.T) {
 	}
 
 	if s.Labels[LabelKey] != "test" {
-		t.Fatalf("foo1 pentagon label should have been 'test': %s", s.Labels[LabelKey])
+		t.Fatalf(
+			"foo1 pentagon label should have been 'test': %s",
+			s.Labels[LabelKey],
+		)
 	}
 
 	_, err = secrets.Get("foo2", metav1.GetOptions{})
@@ -184,11 +201,12 @@ func TestReflectorWithReconcile(t *testing.T) {
 
 	// reflect again, this time without foo2 -- it should still be there
 	// and not get reconciled because we're using the default label value.
-	err = r.Reflect(
-		map[string]string{
-			"secrets/data/foo1": "foo1",
+	err = r.Reflect([]Mapping{
+		Mapping{
+			VaultPath:  "secrets/data/foo1",
+			SecretName: "foo1",
 		},
-	)
+	})
 	if err != nil {
 		t.Fatalf("reflect didn't work the second time: %s", err)
 	}
