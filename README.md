@@ -133,4 +133,6 @@ subjects:
 
 ## Contributors
 Pentagon is a production of Vimeo's Core Services team with lots of support from Vimeo SRE.
-@sergiosalvatore, @dfinkel, and @sachinagada
+* [@sergiosalvatore](https://github.com/sergiosalvatore)
+* [@dfinkel](https://github.com/dfinkel)
+* [@sachinagada](https://github.com/sachinagada)
