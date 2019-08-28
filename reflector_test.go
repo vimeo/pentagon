@@ -199,8 +199,8 @@ func TestReflectorWithReconcile(t *testing.T) {
 		t.Fatalf("foo2 should be there: %s", err)
 	}
 
-	// reflect again, this time without foo2 -- it should still be there
-	// and not get reconciled because we're using the default label value.
+	// reflect again, this time without foo2 -- it should get reconciled
+	// because we're using a non-default label value.
 	err = r.Reflect([]Mapping{
 		Mapping{
 			VaultPath:  "secrets/data/foo1",
@@ -218,6 +218,7 @@ func TestReflectorWithReconcile(t *testing.T) {
 	}
 
 	// foo2 should have been deleted because it wasn't in the mapping
+	// and we're using a non-default label
 	_, err = secrets.Get("foo2", metav1.GetOptions{})
 	if !errors.IsNotFound(err) {
 		t.Fatalf("foo2 should NOT still be there: %s", err)
