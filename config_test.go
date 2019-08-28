@@ -45,7 +45,7 @@ func TestValidate(t *testing.T) {
 
 	c = &Config{
 		Mappings: []Mapping{
-			Mapping{
+			{
 				VaultPath:  "foo",
 				SecretName: "bar",
 			},

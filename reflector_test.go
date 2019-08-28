@@ -28,7 +28,7 @@ func TestReflectorSimple(t *testing.T) {
 	)
 
 	err := r.Reflect([]Mapping{
-		Mapping{
+		{
 			VaultPath:  "secrets/data/foo",
 			SecretName: "foo",
 		},
@@ -84,11 +84,11 @@ func TestReflectorNoReconcile(t *testing.T) {
 
 	// reflect both secrets
 	err := r.Reflect([]Mapping{
-		Mapping{
+		{
 			VaultPath:  "secrets/data/foo1",
 			SecretName: "foo1",
 		},
-		Mapping{
+		{
 			VaultPath:  "secrets/data/foo2",
 			SecretName: "foo2",
 		},
@@ -113,7 +113,7 @@ func TestReflectorNoReconcile(t *testing.T) {
 	// reflect again, this time without foo2 -- it should still be there
 	// and not get reconciled because we're using the default label value.
 	err = r.Reflect([]Mapping{
-		Mapping{
+		{
 			VaultPath:  "secrets/data/foo1",
 			SecretName: "foo1",
 		},
@@ -169,11 +169,11 @@ func TestReflectorWithReconcile(t *testing.T) {
 	r := NewReflector(vaultClient, k8sClient, DefaultNamespace, "test")
 
 	err = r.Reflect([]Mapping{
-		Mapping{
+		{
 			VaultPath:  "secrets/data/foo1",
 			SecretName: "foo1",
 		},
-		Mapping{
+		{
 			VaultPath:  "secrets/data/foo2",
 			SecretName: "foo2",
 		},
@@ -202,7 +202,7 @@ func TestReflectorWithReconcile(t *testing.T) {
 	// reflect again, this time without foo2 -- it should get reconciled
 	// because we're using a non-default label value.
 	err = r.Reflect([]Mapping{
-		Mapping{
+		{
 			VaultPath:  "secrets/data/foo1",
 			SecretName: "foo1",
 		},
