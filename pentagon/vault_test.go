@@ -16,7 +16,7 @@ import (
 )
 
 // helper struct for working with vault instance in k8s
-type vault struct {
+type vaultHelper struct {
 	client     *kubernetes.Clientset
 	restConfig *restclient.Config // this was used to create the client above!
 	namespace  string
@@ -24,7 +24,7 @@ type vault struct {
 }
 
 // sets a secret by exec'ing into the pod and running the command line client.
-func (v *vault) setSecret(path string, values map[string]string) error {
+func (v *vaultHelper) setSecret(path string, values map[string]string) error {
 	valuePairs := []string{}
 	for k, v := range values {
 		valuePairs = append(valuePairs, fmt.Sprintf("%s=%s", k, v))
@@ -69,12 +69,12 @@ func (v *vault) setSecret(path string, values map[string]string) error {
 }
 
 // returns the url to the pod.
-func (v *vault) url() string {
+func (v *vaultHelper) url() string {
 	return fmt.Sprintf("http://%s:%d", v.pod.Status.PodIP, vaultPort)
 }
 
 // create a vault instance in k8s.
-func (v *vault) create(wait time.Duration) error {
+func (v *vaultHelper) create(wait time.Duration) error {
 	// see if it exists first
 	pods := v.client.CoreV1().Pods(v.namespace)
 	p, err := pods.Get("vault", metav1.GetOptions{})

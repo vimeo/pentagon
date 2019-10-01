@@ -16,6 +16,7 @@ vault:
   url: <url to vault>
   authType: # "token" or "gcp-default"
   token: <token value> # if authType == "token" is provided
+  defaultEngineType: # "kv" or "kv-v2" (currently supported)
   role: "vault role" # if left empty, queries the GCP metadata service
   tls: # optional [tls options](https://godoc.org/github.com/hashicorp/vault/api#TLSConfig)
 namespace: <kubernetes namespace for created secrets>
@@ -24,12 +25,58 @@ mappings:
   # mappings from vault paths to kubernetes secret names
   - vaultPath: secret/data/vault-path
     secretName: k8s-secretname
+    vaultEngineType: # optionally "kv" or "kv-v2" to override the defaultEngineType specified above
 ```
 
 ### Labels and Reconciliation
 By default, Pentagon will add a [metadata label](https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#ObjectMeta) with the key `pentagon` and the value `default`.  At the least, this helps identify Pentagon as the creator and maintainer of the secret.
 
 If you set the `label` configuration parameter, you can control the value of the label, allowing multiple Pentagon instances to exist without stepping on each other.  Setting a non-default `label` also enables reconciliation which will cleanup any secrets that were created by Pentagon with a matching label, but are no longer present in the `mappings` configuration.  This provides a simple way to ensure that old secret data does not remain present in your system after its time has passed.
+
+### About Vault Engine Types
+Apparently, different Vault secrets engines have slightly different APIs for returning data.  For instance, here is the response for version 1 of the key/value store:
+
+```json
+{
+  "request_id": "12a0c057-f475-4bbd-6305-e4c07e66805c",
+  "lease_id": "",
+  "renewable": false,
+  "lease_duration": 2764800,
+  "data": {
+    "foo": "world"
+  },
+  "wrap_info": null,
+  "warnings": null,
+  "auth": null
+}
+```
+
+Notice that the `data` object has the `foo` key embedded directly.  Alternatively, here is the response for version 2 of the key/value store:
+
+```json
+{
+  "request_id": "78b921ae-79a8-d7e3-da16-336b634fff22",
+  "lease_id": "",
+  "renewable": false,
+  "lease_duration": 0,
+  "data": {
+    "data": {
+      "foo": "world"
+    },
+    "metadata": {
+      "created_time": "2019-10-01T19:36:25.285387Z",
+      "deletion_time": "",
+      "destroyed": false,
+      "version": 1
+    }
+  },
+  "wrap_info": null,
+  "warnings": null,
+  "auth": null
+}
+```
+
+Notice the extra `data` element nested inside the outer `data`.  Vault secrets engines can be mounted at arbitrary paths and it does not appear to be possible to reliably detect which engine was used in the API response directly.  In order to properly unwrap the secret data,indicate either `kv` or `kv-v2` as the `vaultEngineType` in the configuration.  In the common case of using only one secrets engine,  simply define the `defaultEngineType` in the `vault` configuration block and the mapping-level `vaultEngineType` will inherit the default.  For compatibility, the unset default value defaults to `kv`.  Note that this differs from the current default that Vault itself uses for the key/value secrets engine.
 
 ## Return Values
 The application will return 0 on success (when all keys were copied/updated successfully).  A complete list of all possible return values follows:
@@ -70,7 +117,7 @@ spec:
           restartPolicy: OnFailure
           containers:
           - name: pentagon
-            image: vimeo/pentagon:v1.0.0
+            image: vimeo/pentagon:v1.1.0
             args: ["/etc/pentagon/pentagon.yaml"]
             imagePullPolicy: Always
             resources:

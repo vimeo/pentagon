@@ -80,10 +80,28 @@ func (r *Reflector) Reflect(mappings []Mapping) error {
 			return fmt.Errorf("secret %s not found", mapping.VaultPath)
 		}
 
+		var k8sSecretData map[string][]byte
+
 		// convert map[string]interface{} to map[string][]byte
-		k8sSecretData, err := r.castData(secretData.Data)
-		if err != nil {
-			return fmt.Errorf("error casting data: %s", err)
+		switch mapping.VaultEngineType {
+		case vault.EngineTypeKeyValueV1:
+			k8sSecretData, err = r.castData(secretData.Data)
+			if err != nil {
+				return fmt.Errorf("error casting data: %s", err)
+			}
+		case vault.EngineTypeKeyValueV2:
+			// there's an extra level of wrapping with the v2 kv secrets engine
+			if unwrapped, ok := secretData.Data["data"].(map[string]interface{}); ok {
+				k8sSecretData, err = r.castData(unwrapped)
+			} else {
+				return fmt.Errorf("key/value v2 interface did not have " +
+					"expected extra wrapping")
+			}
+		default:
+			return fmt.Errorf(
+				"unknown vault engine type: %q",
+				mapping.VaultEngineType,
+			)
 		}
 
 		// create the new Secret
