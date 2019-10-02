@@ -1,11 +1,15 @@
 package pentagon
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/vimeo/pentagon/vault"
+)
 
 func TestSetDefaults(t *testing.T) {
 	c := &Config{
 		Vault: VaultConfig{
-			AuthType: VaultAuthTypeToken,
+			AuthType: vault.AuthTypeToken,
 		},
 	}
 
@@ -16,6 +20,16 @@ func TestSetDefaults(t *testing.T) {
 
 	if c.Namespace != DefaultNamespace {
 		t.Fatalf("namespace should be %s, is %s", DefaultNamespace, c.Namespace)
+	}
+
+	if c.Vault.DefaultEngineType != vault.EngineTypeKeyValueV1 {
+		t.Fatalf("unexpected default engine type: %s", c.Vault.DefaultEngineType)
+	}
+
+	for _, m := range c.Mappings {
+		if m.VaultEngineType == "" {
+			t.Fatalf("empty vault engine type for mapping: %+v", m)
+		}
 	}
 }
 
@@ -56,5 +70,4 @@ func TestValidate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("configuration should have been valid: %s", err)
 	}
-
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/vault/api"
+	"github.com/vimeo/pentagon/vault"
 )
 
 // DefaultNamespace is the default kubernetes namespace.
@@ -12,19 +13,6 @@ const DefaultNamespace = "default"
 // DefaultLabelValue is the default label value that will be applied to secrets
 // created by pentagon.
 const DefaultLabelValue = "default"
-
-// VaultAuthType is a custom type to represent different Vault authentication
-// methods.
-type VaultAuthType string
-
-// VaultAuthTypeToken expects the Token property to be set on the VaultConfig
-// struct with a token to use.
-const VaultAuthTypeToken VaultAuthType = "token"
-
-// VaultAuthTypeGCPDefault expects the Role property of the VaultConfig struct
-// to be populated with the role that vault expects and will use the machine's
-// default service account, running within GCP.
-const VaultAuthTypeGCPDefault VaultAuthType = "gcp-default"
 
 // Config describes the configuration for vaultofsecrets
 type Config struct {
@@ -52,6 +40,19 @@ func (c *Config) SetDefaults() {
 	if c.Label == "" {
 		c.Label = DefaultLabelValue
 	}
+
+	// default to engine type key/value v1 for backward compatibility
+	if c.Vault.DefaultEngineType == "" {
+		c.Vault.DefaultEngineType = vault.EngineTypeKeyValueV1
+	}
+
+	// set all the underlying mapping engine types to their default
+	// if unspecified
+	for _, m := range c.Mappings {
+		if m.VaultEngineType == "" {
+			m.VaultEngineType = c.Vault.DefaultEngineType
+		}
+	}
 }
 
 // Validate checks to make sure that the configuration is valid.
@@ -69,7 +70,13 @@ type VaultConfig struct {
 	URL string `yaml:"url"`
 
 	// AuthType can be "token" or "gcp-default".
-	AuthType VaultAuthType `yaml:"authType"`
+	AuthType vault.AuthType `yaml:"authType"`
+
+	// DefaultEngineType is the type of secrets engine used because the API
+	// responses may differ based on the engine used.  In particular, K/V v2
+	// has an extra layer of data wrapping that differs from v1.
+	// Allowed values are "kv" and "kv-v2".
+	DefaultEngineType vault.EngineType `yaml:"defaultEngineType"`
 
 	// Role is the role used when authenticating with vault.  If this is unset
 	// the role will be discovered by querying the GCP metadata service for
@@ -94,4 +101,9 @@ type Mapping struct {
 	// be written to.  Note that this must be a DNS-1123-compatible name and
 	// match the regex [a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*
 	SecretName string `yaml:"secretName"`
+
+	// VaultEngineType is the type of secrets engine mounted at the path of this
+	// Vault secret.  This specifically overrides the DefaultEngineType
+	// specified in VaultConfig.
+	VaultEngineType vault.EngineType `yaml:"vaultEngineType"`
 }

@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/vimeo/pentagon"
+	"github.com/vimeo/pentagon/vault"
 )
 
 func main() {
@@ -104,9 +105,9 @@ func getVaultClient(vaultConfig pentagon.VaultConfig) (*api.Client, error) {
 	}
 
 	switch vaultConfig.AuthType {
-	case pentagon.VaultAuthTypeToken:
+	case vault.AuthTypeToken:
 		client.SetToken(vaultConfig.Token)
-	case pentagon.VaultAuthTypeGCPDefault:
+	case vault.AuthTypeGCPDefault:
 		// default to using configured Role
 		role := vaultConfig.Role
 
