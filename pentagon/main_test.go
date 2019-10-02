@@ -26,7 +26,7 @@ const k8sNamespace = "default"
 const configMapName = "pentagon-config"
 
 type integrationTests struct {
-	vaultInstance vault
+	vaultInstance vaultHelper
 	pj            pentagonJob
 	client        *kubernetes.Clientset
 }
@@ -85,7 +85,7 @@ func TestIntegration(t *testing.T) {
 		t.Fatalf("unable to delete existing jobs: %s", err)
 	}
 
-	vaultInstance := vault{
+	vaultInstance := vaultHelper{
 		client:     clientset,
 		restConfig: restConfig,
 		namespace:  k8sNamespace,
