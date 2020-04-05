@@ -8,7 +8,7 @@ GOMOD_RO_FLAG ?=
 
 build/linux/pentagon: $(DEPS)
 	mkdir -p build/linux
-	GOOS=linux go build $(GOMOD_RO_FLAG) -v -ldflags=$(LDFLAGS) -o ./build/linux/pentagon ./pentagon
+	GOOS=linux CGO_ENABLED=0 go build $(GOMOD_RO_FLAG) -v -ldflags=$(LDFLAGS) -o ./build/linux/pentagon ./pentagon
 
 build/darwin/pentagon: $(DEPS)
 	mkdir -p build/darwin
