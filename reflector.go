@@ -114,6 +114,7 @@ func (r *Reflector) Reflect(mappings []Mapping) error {
 				},
 			},
 			Data: k8sSecretData,
+			Type: mapping.SecretType,
 		}
 
 		if _, ok := secretsSet[mapping.SecretName]; ok {
@@ -131,9 +132,10 @@ func (r *Reflector) Reflect(mappings []Mapping) error {
 		}
 
 		log.Printf(
-			"reflected vault secret %s to kubernetes %s",
+			"reflected vault secret %s to kubernetes %s type (%s)",
 			mapping.VaultPath,
 			mapping.SecretName,
+			mapping.SecretType,
 		)
 
 		// record the fact that we actually updated it
