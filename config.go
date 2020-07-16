@@ -48,9 +48,9 @@ func (c *Config) SetDefaults() {
 
 	// set all the underlying mapping engine types to their default
 	// if unspecified
-	for _, m := range c.Mappings {
+	for i, m := range c.Mappings {
 		if m.VaultEngineType == "" {
-			m.VaultEngineType = c.Vault.DefaultEngineType
+			c.Mappings[i].VaultEngineType = c.Vault.DefaultEngineType
 		}
 	}
 }

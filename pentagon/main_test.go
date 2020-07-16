@@ -205,7 +205,7 @@ func (it *integrationTests) testReconcile(t *testing.T) {
 			},
 		},
 		Data: map[string][]byte{
-			"blah": []byte{1, 2, 3},
+			"blah": {1, 2, 3},
 		},
 	}
 
@@ -379,7 +379,7 @@ func initRBAC(client *kubernetes.Clientset) error {
 			Namespace: k8sNamespace,
 		},
 		Rules: []rbacv1.PolicyRule{
-			rbacv1.PolicyRule{
+			{
 				Verbs:     []string{"get", "list", "create", "update", "delete"},
 				Resources: []string{"secrets"},
 				APIGroups: []string{rbacv1.APIGroupAll},
@@ -393,7 +393,7 @@ func initRBAC(client *kubernetes.Clientset) error {
 			Namespace: k8sNamespace,
 		},
 		Subjects: []rbacv1.Subject{
-			rbacv1.Subject{
+			{
 				Kind:      rbacv1.ServiceAccountKind,
 				Name:      "default",
 				Namespace: k8sNamespace,

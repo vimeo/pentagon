@@ -76,11 +76,11 @@ func (p *pentagonJob) run(wait time.Duration) error {
 			Template: v1.PodTemplateSpec{
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
-						v1.Container{
+						{
 							Name:  "pentagon",
 							Image: "pentagon:0.0.0",
 							VolumeMounts: []v1.VolumeMount{
-								v1.VolumeMount{
+								{
 									MountPath: "/pentagon-config",
 									Name:      "config-map-volume",
 								},
@@ -90,7 +90,7 @@ func (p *pentagonJob) run(wait time.Duration) error {
 					},
 					RestartPolicy: v1.RestartPolicyNever,
 					Volumes: []v1.Volume{
-						v1.Volume{
+						{
 							Name: "config-map-volume",
 							VolumeSource: v1.VolumeSource{
 								ConfigMap: &v1.ConfigMapVolumeSource{

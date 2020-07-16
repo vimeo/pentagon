@@ -89,14 +89,14 @@ func (v *vaultHelper) create(wait time.Duration) error {
 		},
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
-				v1.Container{
+				{
 					Name:  "vault",
 					Image: "vault:1.1.1",
 					Env: []v1.EnvVar{
-						v1.EnvVar{Name: "VAULT_DEV_ROOT_TOKEN_ID", Value: testRootToken},
-						v1.EnvVar{Name: "VAULT_TOKEN", Value: testRootToken}, // so the client will work too
-						v1.EnvVar{Name: "VAULT_DEV_LISTEN_ADDRESS", Value: fmt.Sprintf("0.0.0.0:%d", vaultPort)},
-						v1.EnvVar{Name: "VAULT_ADDR", Value: fmt.Sprintf("http://127.0.0.1:%d", vaultPort)},
+						{Name: "VAULT_DEV_ROOT_TOKEN_ID", Value: testRootToken},
+						{Name: "VAULT_TOKEN", Value: testRootToken}, // so the client will work too
+						{Name: "VAULT_DEV_LISTEN_ADDRESS", Value: fmt.Sprintf("0.0.0.0:%d", vaultPort)},
+						{Name: "VAULT_ADDR", Value: fmt.Sprintf("http://127.0.0.1:%d", vaultPort)},
 					},
 					ReadinessProbe: &v1.Probe{
 						Handler: v1.Handler{
