@@ -11,6 +11,12 @@ func TestSetDefaults(t *testing.T) {
 		Vault: VaultConfig{
 			AuthType: vault.AuthTypeToken,
 		},
+		Mappings: []Mapping{
+			{
+				VaultPath:  "vaultPath",
+				SecretName: "theSecret",
+			},
+		},
 	}
 
 	c.SetDefaults()
