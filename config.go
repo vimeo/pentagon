@@ -5,6 +5,8 @@ import (
 
 	"github.com/hashicorp/vault/api"
 	"github.com/vimeo/pentagon/vault"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 // DefaultNamespace is the default kubernetes namespace.
@@ -51,6 +53,9 @@ func (c *Config) SetDefaults() {
 	for i, m := range c.Mappings {
 		if m.VaultEngineType == "" {
 			c.Mappings[i].VaultEngineType = c.Vault.DefaultEngineType
+		}
+		if m.SecretType == "" {
+			m.SecretType = corev1.SecretTypeOpaque
 		}
 	}
 }
@@ -101,6 +106,9 @@ type Mapping struct {
 	// be written to.  Note that this must be a DNS-1123-compatible name and
 	// match the regex [a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*
 	SecretName string `yaml:"secretName"`
+
+	// SecretType is a k8s SecretType type (string)
+	SecretType corev1.SecretType `yaml:"secretType"`
 
 	// VaultEngineType is the type of secrets engine mounted at the path of this
 	// Vault secret.  This specifically overrides the DefaultEngineType

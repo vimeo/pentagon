@@ -26,6 +26,7 @@ mappings:
   - vaultPath: secret/data/vault-path
     secretName: k8s-secretname
     vaultEngineType: # optionally "kv" or "kv-v2" to override the defaultEngineType specified above
+    secretType: Opaque # optionally - default "Opaque" e.g.: "kubernetes.io/tls"
 ```
 
 ### Labels and Reconciliation
@@ -151,6 +152,9 @@ data:
     mappings:
       - vaultPath: secret/config/main/foo.key
         secretName: foo-key
+      - vaultPath: secret/ssl/tls/domain.com
+        secretName: domain.com
+        secretType: "kubernetes.io/tls"
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role

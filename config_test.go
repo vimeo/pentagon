@@ -36,6 +36,9 @@ func TestSetDefaults(t *testing.T) {
 		if m.VaultEngineType == "" {
 			t.Fatalf("empty vault engine type for mapping: %+v", m)
 		}
+		if m.SecretType == "" {
+			t.Fatalf("empty Kubernetes secret type for mapping: %+v", m)
+		}
 	}
 }
 
@@ -43,6 +46,11 @@ func TestNoClobber(t *testing.T) {
 	c := &Config{
 		Label:     "foo",
 		Namespace: "bar",
+		Mappings: []Mapping{
+			{
+				SecretType: "kubernetes.io/tls",
+			},
+		},
 	}
 
 	c.SetDefaults()
@@ -53,6 +61,12 @@ func TestNoClobber(t *testing.T) {
 
 	if c.Namespace != "bar" {
 		t.Fatalf("namespace should still be bar, is %s", c.Namespace)
+	}
+
+	for _, m := range c.Mappings {
+		if m.SecretType != "kubernetes.io/tls" {
+			t.Fatalf("Kubernetes secret type should still be 'kubernetes.io/tls', is %s", m.SecretType)
+		}
 	}
 }
 
