@@ -55,7 +55,7 @@ func (c *Config) SetDefaults() {
 			c.Mappings[i].VaultEngineType = c.Vault.DefaultEngineType
 		}
 		if m.SecretType == "" {
-			m.SecretType = corev1.SecretTypeOpaque
+			c.Mappings[i].SecretType = corev1.SecretTypeOpaque
 		}
 	}
 }
