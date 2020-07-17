@@ -1,4 +1,4 @@
-FROM golang:1.14.5-alpine as builder
+FROM golang:1.14.6-alpine as builder
 
 RUN apk add --no-cache ca-certificates libc-dev git make gcc
 RUN adduser -D pentagon
