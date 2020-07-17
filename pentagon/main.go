@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/url"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"cloud.google.com/go/compute/metadata"
 	"github.com/hashicorp/vault/api"
@@ -19,6 +22,19 @@ import (
 )
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		log.Printf("caught signal")
+		cancel()
+		// We're done with this channel, remove the signal handler.
+		signal.Stop(sigChan)
+	}()
+
 	if len(os.Args) != 2 {
 		log.Printf(
 			"incorrect number of arguments. need 2, got %d [%#v]",
@@ -67,7 +83,7 @@ func main() {
 		config.Label,
 	)
 
-	err = reflector.Reflect(config.Mappings)
+	err = reflector.Reflect(ctx, config.Mappings)
 	if err != nil {
 		log.Printf("error reflecting vault values into kubernetes: %s", err)
 		os.Exit(40)
