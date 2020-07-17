@@ -1,6 +1,7 @@
 package pentagon
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -42,8 +43,7 @@ type Reflector struct {
 
 // Reflect actually syncs the values between vault and k8s secrets based on
 // the mappings passed.
-func (r *Reflector) Reflect(mappings []Mapping) error {
-
+func (r *Reflector) Reflect(ctx context.Context, mappings []Mapping) error {
 	secrets := r.k8sClient.CoreV1().Secrets(r.k8sNamespace)
 
 	// only select secrets that we created
@@ -51,7 +51,7 @@ func (r *Reflector) Reflect(mappings []Mapping) error {
 		LabelSelector: labels.Set{LabelKey: r.labelValue}.String(),
 	}
 
-	secretsList, err := secrets.List(listOptions)
+	secretsList, err := secrets.List(ctx, listOptions)
 	if err != nil {
 		return fmt.Errorf("error listing secrets: %s", err)
 	}
@@ -119,13 +119,13 @@ func (r *Reflector) Reflect(mappings []Mapping) error {
 
 		if _, ok := secretsSet[mapping.SecretName]; ok {
 			// secret already exists, so we should update it
-			_, err = secrets.Update(newSecret)
+			_, err = secrets.Update(ctx, newSecret, metav1.UpdateOptions{})
 			if err != nil {
 				return fmt.Errorf("error updating secret: %s", err)
 			}
 		} else {
 			// secret doesn't exist, so create it
-			_, err = secrets.Create(newSecret)
+			_, err = secrets.Create(ctx, newSecret, metav1.CreateOptions{})
 			if err != nil {
 				return fmt.Errorf("error creating secret: %s", err)
 			}
@@ -146,7 +146,7 @@ func (r *Reflector) Reflect(mappings []Mapping) error {
 	// that are no longer in vault, but might still exist from previous runs
 	// in kubernetes
 	if r.labelValue != DefaultLabelValue {
-		err = r.reconcile(secretsSet, touchedSecrets)
+		err = r.reconcile(ctx, secretsSet, touchedSecrets)
 		if err != nil {
 			return fmt.Errorf("error reconciling: %s", err)
 		}
@@ -158,6 +158,7 @@ func (r *Reflector) Reflect(mappings []Mapping) error {
 // reconcile delete any secrets that were not part of the mapping (but still
 // present in the secrets with the same label)
 func (r *Reflector) reconcile(
+	ctx context.Context,
 	allSecrets map[string]struct{},
 	touchedSecrets map[string]struct{},
 ) error {
@@ -166,7 +167,7 @@ func (r *Reflector) reconcile(
 	for secret := range allSecrets {
 		if _, found := touchedSecrets[secret]; !found {
 			// it was in the list, but we didn't update it (or create it)
-			err := secretsAPI.Delete(secret, &metav1.DeleteOptions{})
+			err := secretsAPI.Delete(ctx, secret, metav1.DeleteOptions{})
 
 			// not found is ok because we're deleting, so only return the
 			// error if it's NOT not found...
