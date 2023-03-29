@@ -93,6 +93,9 @@ func (r *Reflector) Reflect(ctx context.Context, mappings []Mapping) error {
 			// there's an extra level of wrapping with the v2 kv secrets engine
 			if unwrapped, ok := secretData.Data["data"].(map[string]interface{}); ok {
 				k8sSecretData, err = r.castData(unwrapped)
+				if err != nil {
+					return fmt.Errorf("error casting v2 data: %s", err)
+				}
 			} else {
 				return fmt.Errorf("key/value v2 interface did not have " +
 					"expected extra wrapping")
