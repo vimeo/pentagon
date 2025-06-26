@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"cloud.google.com/go/compute/metadata"
+	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/hashicorp/vault/api"
 	yaml "gopkg.in/yaml.v2"
 	"k8s.io/client-go/kubernetes"
@@ -76,8 +77,16 @@ func main() {
 		os.Exit(31)
 	}
 
+	gsmClient, err := secretmanager.NewClient(ctx)
+	if err != nil {
+		log.Printf("unable to get GSM client: %s", err)
+		os.Exit(32)
+	}
+	defer gsmClient.Close()
+
 	reflector := pentagon.NewReflector(
 		vaultClient.Logical(),
+		gsmClient,
 		k8sClient,
 		config.Namespace,
 		config.Label,
