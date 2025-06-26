@@ -5,20 +5,20 @@ import (
 	"fmt"
 	"log"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+	typedv1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	"github.com/vimeo/pentagon/vault"
 )
 
-// LabelKey is the name of label that will be attached to every secret created
-// by pentagon.
+// LabelKey is the name of label that will be attached to every secret created by pentagon.
 const LabelKey = "pentagon"
 
-// NewReflector returns a new relfector
+// NewReflector returns a new reflector
 func NewReflector(
 	vaultClient vault.Logical,
 	k8sClient kubernetes.Interface,
@@ -26,109 +26,47 @@ func NewReflector(
 	labelValue string,
 ) *Reflector {
 	return &Reflector{
-		vaultClient:  vaultClient,
-		k8sClient:    k8sClient,
-		k8sNamespace: k8sNamespace,
-		labelValue:   labelValue,
+		vaultClient:   vaultClient,
+		secretsClient: k8sClient.CoreV1().Secrets(k8sNamespace),
+		k8sNamespace:  k8sNamespace,
+		labelValue:    labelValue,
 	}
 }
 
 // Reflector moves things from vault to kubernetes
 type Reflector struct {
-	vaultClient  vault.Logical
-	k8sClient    kubernetes.Interface
-	k8sNamespace string
-	labelValue   string
+	vaultClient   vault.Logical
+	secretsClient typedv1.SecretInterface
+	k8sNamespace  string
+	labelValue    string
+	secretsSet    map[string]struct{}
 }
 
-// Reflect actually syncs the values between vault and k8s secrets based on
-// the mappings passed.
+// Reflect syncs the values between vault and k8s secrets based on the mappings passed.
 func (r *Reflector) Reflect(ctx context.Context, mappings []Mapping) error {
-	secrets := r.k8sClient.CoreV1().Secrets(r.k8sNamespace)
-
-	// only select secrets that we created
-	listOptions := metav1.ListOptions{
+	// create a set of existing k8s secrets which were created by pentagon
+	secretsList, err := r.secretsClient.List(ctx, metav1.ListOptions{
 		LabelSelector: labels.Set{LabelKey: r.labelValue}.String(),
-	}
-
-	secretsList, err := secrets.List(ctx, listOptions)
+	})
 	if err != nil {
 		return fmt.Errorf("error listing secrets: %s", err)
 	}
-
-	// make a set of the secrets keyed by name so we can easily access them.
-	secretsSet := make(map[string]struct{}, secretsList.Size())
+	r.secretsSet = make(map[string]struct{}, secretsList.Size())
 	for _, secret := range secretsList.Items {
-		secretsSet[secret.ObjectMeta.Name] = struct{}{}
+		r.secretsSet[secret.ObjectMeta.Name] = struct{}{}
 	}
 
-	// make a set of the secrets that we're actually updating so we can
-	// reconcile later.
+	// make a set of the secrets that we're updating so we can reconcile later.
 	touchedSecrets := map[string]struct{}{}
 
 	for _, mapping := range mappings {
-		secretData, err := r.vaultClient.Read(mapping.VaultPath)
+		k8sSecretData, err := r.getVaultSecret(mapping)
 		if err != nil {
-			return fmt.Errorf(
-				"error reading vault key '%s': %s",
-				mapping.VaultPath,
-				err,
-			)
+			return err
 		}
 
-		if secretData == nil {
-			return fmt.Errorf("secret %s not found", mapping.VaultPath)
-		}
-
-		var k8sSecretData map[string][]byte
-
-		// convert map[string]interface{} to map[string][]byte
-		switch mapping.VaultEngineType {
-		case vault.EngineTypeKeyValueV1:
-			k8sSecretData, err = r.castData(secretData.Data)
-			if err != nil {
-				return fmt.Errorf("error casting data: %s", err)
-			}
-		case vault.EngineTypeKeyValueV2:
-			// there's an extra level of wrapping with the v2 kv secrets engine
-			if unwrapped, ok := secretData.Data["data"].(map[string]interface{}); ok {
-				k8sSecretData, err = r.castData(unwrapped)
-			} else {
-				return fmt.Errorf("key/value v2 interface did not have " +
-					"expected extra wrapping")
-			}
-		default:
-			return fmt.Errorf(
-				"unknown vault engine type: %q",
-				mapping.VaultEngineType,
-			)
-		}
-
-		// create the new Secret
-		newSecret := &v1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      mapping.SecretName,
-				Namespace: r.k8sNamespace,
-				Labels: map[string]string{
-					LabelKey: r.labelValue,
-				},
-			},
-			Data: k8sSecretData,
-			Type: mapping.SecretType,
-		}
-
-		if _, ok := secretsSet[mapping.SecretName]; ok {
-			// secret already exists, so we should update it
-			_, err = secrets.Update(ctx, newSecret, metav1.UpdateOptions{})
-			if err != nil {
-				return fmt.Errorf("error updating secret: %s", err)
-			}
-		} else {
-			// secret doesn't exist, so create it
-			_, err = secrets.Create(ctx, newSecret, metav1.CreateOptions{})
-			if err != nil {
-				return fmt.Errorf("error creating secret: %s", err)
-			}
+		if err := r.createK8sSecret(ctx, mapping, k8sSecretData); err != nil {
+			return err
 		}
 
 		log.Printf(
@@ -138,16 +76,14 @@ func (r *Reflector) Reflect(ctx context.Context, mappings []Mapping) error {
 			mapping.SecretType,
 		)
 
-		// record the fact that we actually updated it
-		touchedSecrets[newSecret.Name] = struct{}{}
+		// record the fact that we updated it
+		touchedSecrets[mapping.SecretName] = struct{}{}
 	}
 
-	// if we're not using the default label value, reconcile any secrets
-	// that are no longer in vault, but might still exist from previous runs
-	// in kubernetes
+	// if we're not using the default label value, delete any secrets that are no longer in our
+	// mappings, but might still exist from previous runs in kubernetes
 	if r.labelValue != DefaultLabelValue {
-		err = r.reconcile(ctx, secretsSet, touchedSecrets)
-		if err != nil {
+		if err := r.reconcile(ctx, r.secretsSet, touchedSecrets); err != nil {
 			return fmt.Errorf("error reconciling: %s", err)
 		}
 	}
@@ -155,22 +91,81 @@ func (r *Reflector) Reflect(ctx context.Context, mappings []Mapping) error {
 	return nil
 }
 
-// reconcile delete any secrets that were not part of the mapping (but still
-// present in the secrets with the same label)
+func (r *Reflector) getVaultSecret(mapping Mapping) (map[string][]byte, error) {
+	secretData, err := r.vaultClient.Read(mapping.VaultPath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading vault key '%s': %s", mapping.VaultPath, err)
+	}
+
+	if secretData == nil {
+		return nil, fmt.Errorf("secret %s not found", mapping.VaultPath)
+	}
+
+	// convert map[string]interface{} to map[string][]byte
+	var k8sSecretData map[string][]byte
+	switch mapping.VaultEngineType {
+	case vault.EngineTypeKeyValueV1:
+		k8sSecretData, err = r.castData(secretData.Data)
+		if err != nil {
+			return nil, fmt.Errorf("error casting data: %s", err)
+		}
+	case vault.EngineTypeKeyValueV2:
+		// there's an extra level of wrapping with the v2 kv secrets engine
+		if unwrapped, ok := secretData.Data["data"].(map[string]interface{}); ok {
+			k8sSecretData, err = r.castData(unwrapped)
+			if err != nil {
+				return nil, fmt.Errorf("error casting data: %s", err)
+			}
+		} else {
+			return nil, fmt.Errorf("key/value v2 interface did not have expected extra wrapping")
+		}
+	default:
+		return nil, fmt.Errorf("unknown vault engine type: %q", mapping.VaultEngineType)
+	}
+
+	return k8sSecretData, nil
+}
+
+func (r *Reflector) createK8sSecret(ctx context.Context, mapping Mapping, data map[string][]byte) error {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      mapping.SecretName,
+			Namespace: r.k8sNamespace,
+			Labels:    map[string]string{LabelKey: r.labelValue},
+		},
+		Data: data,
+		Type: mapping.SecretType,
+	}
+
+	if _, ok := r.secretsSet[mapping.SecretName]; ok {
+		// secret already exists, so we should update it
+		_, err := r.secretsClient.Update(ctx, secret, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("error updating secret: %s", err)
+		}
+	} else {
+		// secret doesn't exist, so create it
+		_, err := r.secretsClient.Create(ctx, secret, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("error creating secret: %s", err)
+		}
+	}
+	return nil
+}
+
+// reconcile deletes any secrets that were not part of the mapping (but still present in the secrets
+// with the same label)
 func (r *Reflector) reconcile(
 	ctx context.Context,
 	allSecrets map[string]struct{},
 	touchedSecrets map[string]struct{},
 ) error {
-	secretsAPI := r.k8sClient.CoreV1().Secrets(r.k8sNamespace)
-
 	for secret := range allSecrets {
 		if _, found := touchedSecrets[secret]; !found {
 			// it was in the list, but we didn't update it (or create it)
-			err := secretsAPI.Delete(ctx, secret, metav1.DeleteOptions{})
+			err := r.secretsClient.Delete(ctx, secret, metav1.DeleteOptions{})
 
-			// not found is ok because we're deleting, so only return the
-			// error if it's NOT not found...
+			// not found is ok, since we're deleting the secret
 			if err != nil && !errors.IsNotFound(err) {
 				return err
 			}
