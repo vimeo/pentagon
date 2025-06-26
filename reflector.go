@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 
-	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -14,6 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	typedv1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
+	"github.com/vimeo/pentagon/gsm"
 	"github.com/vimeo/pentagon/vault"
 )
 
@@ -23,7 +23,7 @@ const LabelKey = "pentagon"
 // NewReflector returns a new reflector
 func NewReflector(
 	vaultClient vault.Logical,
-	gsmClient *secretmanager.Client,
+	gsmClient gsm.SecretAccessor,
 	k8sClient kubernetes.Interface,
 	k8sNamespace string,
 	labelValue string,
@@ -40,7 +40,7 @@ func NewReflector(
 // Reflector moves secrets from Vault/GSM to Kubernetes
 type Reflector struct {
 	vaultClient   vault.Logical
-	gsmClient     *secretmanager.Client
+	gsmClient     gsm.SecretAccessor
 	secretsClient typedv1.SecretInterface
 	k8sNamespace  string
 	labelValue    string
@@ -66,6 +66,7 @@ func (r *Reflector) Reflect(ctx context.Context, mappings []Mapping) error {
 
 	for _, mapping := range mappings {
 		var k8sSecretData map[string][]byte
+		var msg string
 		switch mapping.SourceType {
 		case GSMSourceType:
 			var err error
@@ -73,12 +74,24 @@ func (r *Reflector) Reflect(ctx context.Context, mappings []Mapping) error {
 			if err != nil {
 				return err
 			}
+			msg = fmt.Sprintf(
+				"reflected GSM secret %s to kubernetes secret %s (type %s)",
+				mapping.GSMPath,
+				mapping.SecretName,
+				mapping.SecretType,
+			)
 		case VaultSourceType:
 			var err error
 			k8sSecretData, err = r.getVaultSecret(mapping)
 			if err != nil {
 				return err
 			}
+			msg = fmt.Sprintf(
+				"reflected vault secret %s to kubernetes secret %s (type %s)",
+				mapping.VaultPath,
+				mapping.SecretName,
+				mapping.SecretType,
+			)
 		default:
 			return fmt.Errorf("unknown secret source type: %s", mapping.SourceType)
 		}
@@ -87,14 +100,8 @@ func (r *Reflector) Reflect(ctx context.Context, mappings []Mapping) error {
 			return err
 		}
 
-		log.Printf(
-			"reflected vault secret %s to kubernetes %s type (%s)",
-			mapping.VaultPath,
-			mapping.SecretName,
-			mapping.SecretType,
-		)
-
 		// record the fact that we updated it
+		log.Println(msg)
 		touchedSecrets[mapping.SecretName] = struct{}{}
 	}
 
