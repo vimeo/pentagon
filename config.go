@@ -9,17 +9,28 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// DefaultNamespace is the default kubernetes namespace.
-const DefaultNamespace = "default"
+const (
+	// DefaultNamespace is the default kubernetes namespace.
+	DefaultNamespace = "default"
 
-// DefaultLabelValue is the default label value that will be applied to secrets
-// created by pentagon.
-const DefaultLabelValue = "default"
+	// DefaultLabelValue is the default label value that will be applied to secrets
+	// created by pentagon.
+	DefaultLabelValue = "default"
+
+	// VaultSourceType indicates a mapping sourced from Hashicorp Vault.
+	VaultSourceType = "vault"
+
+	// GSMSourceType indicates a mapping sourced from Google Secrets Manager.
+	GSMSourceType = "gsm"
+)
 
 // Config describes the configuration for vaultofsecrets
 type Config struct {
-	// VaultURL is the URL used to connect to vault.
+	// Vault is the configuration used to connect to vault.
 	Vault VaultConfig `yaml:"vault"`
+
+	// GSM is the configuration used to connect to Google Secrets Manager.
+	GSM GSMConfig `yaml:"gsm"`
 
 	// Namespace is the k8s namespace that the secrets will be created in.
 	Namespace string `yaml:"namespace"`
@@ -51,6 +62,11 @@ func (c *Config) SetDefaults() {
 	// set all the underlying mapping engine types to their default
 	// if unspecified
 	for i, m := range c.Mappings {
+		// default to vault source type for backward compatibility
+		if m.SourceType == "" {
+			c.Mappings[i].SourceType = VaultSourceType
+		}
+
 		if m.VaultEngineType == "" {
 			c.Mappings[i].VaultEngineType = c.Vault.DefaultEngineType
 		}
@@ -64,6 +80,18 @@ func (c *Config) SetDefaults() {
 func (c *Config) Validate() error {
 	if c.Mappings == nil {
 		return fmt.Errorf("no mappings provided")
+	}
+
+	validSourceTypes := map[string]struct{}{
+		"":              {},
+		VaultSourceType: {},
+		GSMSourceType:   {},
+	}
+
+	for _, m := range c.Mappings {
+		if _, ok := validSourceTypes[m.SourceType]; !ok {
+			return fmt.Errorf("invalid source type: %+v", m.SourceType)
+		}
 	}
 
 	return nil
@@ -97,10 +125,26 @@ type VaultConfig struct {
 	TLSConfig *api.TLSConfig `yaml:"tls"` // for other vault TLS options
 }
 
+// GSMConfig is the Google Secrets Manager configuration.
+type GSMConfig struct {
+	// Will add fields as needed.
+}
+
 // Mapping is a single mapping for a vault secret to a k8s secret.
 type Mapping struct {
-	// VaultPath is the path to the vault secret.
+	// SourceType is the source of a secret: Vault or GSM. Defaults to Vault.
+	SourceType string `yaml:"sourceType"`
+
+	// VaultPath is the path to a vault secret.
 	VaultPath string `yaml:"vaultPath"`
+
+	// GSMPath is the full-qualified path of a GSM secret, including its name and version.
+	// For example:
+	// - projects/*/secrets/*/versions/*
+	// - projects/*/secrets/*/versions/latest
+	// - projects/*/locations/*/secrets/*/versions/*
+	// - projects/*/locations/*/secrets/*/versions/latest
+	GSMPath string `yaml:"gsmPath"`
 
 	// SecretName is the name of the k8s secret that the vault contents should
 	// be written to.  Note that this must be a DNS-1123-compatible name and
