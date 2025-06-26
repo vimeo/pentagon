@@ -40,12 +40,14 @@ func TestRefactorSimple(t *testing.T) {
 
 		r := NewReflector(
 			vaultClient,
+			nil, // TODO: Mock GSM.
 			k8sClient, DefaultNamespace,
 			DefaultLabelValue,
 		)
 
 		err := r.Reflect(ctx, []Mapping{
 			{
+				SourceType:      "vault",
 				VaultPath:       "secrets/data/foo",
 				SecretName:      "foo",
 				VaultEngineType: engineType,
@@ -101,6 +103,7 @@ func TestReflectorNoReconcile(t *testing.T) {
 
 		r := NewReflector(
 			vaultClient,
+			nil, // TODO: Mock GSM.
 			k8sClient,
 			DefaultNamespace,
 			DefaultLabelValue,
@@ -109,11 +112,13 @@ func TestReflectorNoReconcile(t *testing.T) {
 		// reflect both secrets
 		err := r.Reflect(ctx, []Mapping{
 			{
+				SourceType:      "vault",
 				VaultPath:       "secrets/data/foo1",
 				SecretName:      "foo1",
 				VaultEngineType: engineType,
 			},
 			{
+				SourceType:      "vault",
 				VaultPath:       "secrets/data/foo2",
 				SecretName:      "foo2",
 				VaultEngineType: engineType,
@@ -140,6 +145,7 @@ func TestReflectorNoReconcile(t *testing.T) {
 		// and not get reconciled because we're using the default label value.
 		err = r.Reflect(ctx, []Mapping{
 			{
+				SourceType:      "vault",
 				VaultPath:       "secrets/data/foo1",
 				SecretName:      "foo1",
 				VaultEngineType: engineType,
@@ -199,15 +205,17 @@ func TestReflectorWithReconcile(t *testing.T) {
 			t.Fatalf("unable to create other-reflect secret: %s", err)
 		}
 
-		r := NewReflector(vaultClient, k8sClient, DefaultNamespace, "test")
+		r := NewReflector(vaultClient, nil, k8sClient, DefaultNamespace, "test") // TODO: Mock GSM.
 
 		err = r.Reflect(ctx, []Mapping{
 			{
+				SourceType:      "vault",
 				VaultPath:       "secrets/data/foo1",
 				SecretName:      "foo1",
 				VaultEngineType: engineType,
 			},
 			{
+				SourceType:      "vault",
 				VaultPath:       "secrets/data/foo2",
 				SecretName:      "foo2",
 				VaultEngineType: engineType,
@@ -238,6 +246,7 @@ func TestReflectorWithReconcile(t *testing.T) {
 		// because we're using a non-default label value.
 		err = r.Reflect(ctx, []Mapping{
 			{
+				SourceType:      "vault",
 				VaultPath:       "secrets/data/foo1",
 				SecretName:      "foo1",
 				VaultEngineType: engineType,
@@ -283,12 +292,14 @@ func TestUnsupportedEngineType(t *testing.T) {
 
 	r := NewReflector(
 		vaultClient,
+		nil, // TODO: Mock GSM.
 		k8sClient, DefaultNamespace,
 		DefaultLabelValue,
 	)
 
 	err := r.Reflect(ctx, []Mapping{
 		{
+			SourceType:      "vault",
 			VaultPath:       "secrets/data/foo",
 			SecretName:      "foo",
 			VaultEngineType: vault.EngineType("unsupported"),

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 
+	secretmanager "cloud.google.com/go/secretmanager/apiv1"
+	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,28 +23,31 @@ const LabelKey = "pentagon"
 // NewReflector returns a new reflector
 func NewReflector(
 	vaultClient vault.Logical,
+	gsmClient *secretmanager.Client,
 	k8sClient kubernetes.Interface,
 	k8sNamespace string,
 	labelValue string,
 ) *Reflector {
 	return &Reflector{
 		vaultClient:   vaultClient,
+		gsmClient:     gsmClient,
 		secretsClient: k8sClient.CoreV1().Secrets(k8sNamespace),
 		k8sNamespace:  k8sNamespace,
 		labelValue:    labelValue,
 	}
 }
 
-// Reflector moves things from vault to kubernetes
+// Reflector moves secrets from Vault/GSM to Kubernetes
 type Reflector struct {
 	vaultClient   vault.Logical
+	gsmClient     *secretmanager.Client
 	secretsClient typedv1.SecretInterface
 	k8sNamespace  string
 	labelValue    string
 	secretsSet    map[string]struct{}
 }
 
-// Reflect syncs the values between vault and k8s secrets based on the mappings passed.
+// Reflect syncs the values between Vault/GSM and k8s secrets based on the mappings passed.
 func (r *Reflector) Reflect(ctx context.Context, mappings []Mapping) error {
 	// create a set of existing k8s secrets which were created by pentagon
 	secretsList, err := r.secretsClient.List(ctx, metav1.ListOptions{
@@ -60,9 +65,22 @@ func (r *Reflector) Reflect(ctx context.Context, mappings []Mapping) error {
 	touchedSecrets := map[string]struct{}{}
 
 	for _, mapping := range mappings {
-		k8sSecretData, err := r.getVaultSecret(mapping)
-		if err != nil {
-			return err
+		var k8sSecretData map[string][]byte
+		switch mapping.SourceType {
+		case GSMSourceType:
+			var err error
+			k8sSecretData, err = r.getGSMSecret(ctx, mapping)
+			if err != nil {
+				return err
+			}
+		case VaultSourceType:
+			var err error
+			k8sSecretData, err = r.getVaultSecret(mapping)
+			if err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("unknown secret source type: %s", mapping.SourceType)
 		}
 
 		if err := r.createK8sSecret(ctx, mapping, k8sSecretData); err != nil {
@@ -124,6 +142,17 @@ func (r *Reflector) getVaultSecret(mapping Mapping) (map[string][]byte, error) {
 	}
 
 	return k8sSecretData, nil
+}
+
+func (r *Reflector) getGSMSecret(ctx context.Context, mapping Mapping) (map[string][]byte, error) {
+	resp, err := r.gsmClient.AccessSecretVersion(ctx, &secretmanagerpb.AccessSecretVersionRequest{
+		Name: mapping.GSMPath,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string][]byte{mapping.SecretName: resp.Payload.Data}, nil
 }
 
 func (r *Reflector) createK8sSecret(ctx context.Context, mapping Mapping, data map[string][]byte) error {
