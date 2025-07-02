@@ -2,15 +2,13 @@
 [![GoDoc](https://godoc.org/github.com/vimeo/pentagon?status.svg)](https://godoc.org/github.com/vimeo/pentagon) [![Go Report Card](https://goreportcard.com/badge/github.com/vimeo/pentagon)](https://goreportcard.com/report/github.com/vimeo/pentagon) 
 
 # Pentagon
-Pentagon is a small application designed to run as a Kubernetes CronJob to periodically copy secrets stored in [Vault](https://www.vaultproject.io) into equivalent [Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/), keeping them synchronized.  Naturally, this should be used with care as "standard" Kubernetes Secrets are simply obfuscated as base64-encoded strings.  However, one can and should use more secure methods of securing secrets including Google's [KMS](https://cloud.google.com/kubernetes-engine/docs/how-to/encrypting-secrets) and restricting roles and service accounts appropriately.
-
-Use at your own risk...
+Pentagon is a small application designed to run as a Kubernetes CronJob to periodically copy secrets stored in [Vault](https://www.vaultproject.io) or Google Secrets Manager into equivalent [Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/), keeping them synchronized.  Naturally, this should be used with care as "standard" Kubernetes Secrets are simply obfuscated as base64-encoded strings.  However, one can and should use more secure methods of securing secrets including Google's [KMS](https://cloud.google.com/kubernetes-engine/docs/how-to/encrypting-secrets) and restricting roles and service accounts appropriately.
 
 ## Why not just query Vault?
 That's a good question.  If you have a highly-available Vault setup that is stable and performant and you're able to modify your applications to query Vault, that's a completely reasonable approach to take.  If you don't have such a setup, Pentagon provides a way to cache things securely in Kubernetes secrets which can then be provided to applications without directly introducing a Vault dependency.
 
 ## Configuration
-Pentagon requires a simple YAML configuration file, the path to which should be passed as the first and only argument to the application.  It is recommended that you store this configuration in a [ConfigMap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/) and reference it in the CronJob specification.  A sample configuration follows:
+Pentagon requires a YAML configuration file, the path to which should be passed as the first and only argument to the application.  It is recommended that you store this configuration in a [ConfigMap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/) and reference it in the CronJob specification.  A sample configuration follows:
 
 ```yaml
 vault:
@@ -28,6 +26,10 @@ mappings:
     secretName: k8s-secretname
     vaultEngineType: # optionally "kv" or "kv-v2" to override the defaultEngineType specified above
     secretType: Opaque # optionally - default "Opaque" e.g.: "kubernetes.io/tls"
+  # mappings from google secrets manager paths to kubernetes secret names
+  - sourceType: gsm
+    gsmPath: projects/my-project/secrets/my-secret/versions/latest
+    secretName: my-secret
 ```
 
 ### Labels and Reconciliation
