@@ -94,7 +94,7 @@ func main() {
 
 	err = reflector.Reflect(ctx, config.Mappings)
 	if err != nil {
-		log.Printf("error reflecting vault values into kubernetes: %s", err)
+		log.Printf("error reflecting secrets into kubernetes: %s", err)
 		os.Exit(40)
 	}
 }
