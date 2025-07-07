@@ -94,6 +94,7 @@ The application will return 0 on success (when all keys were copied/updated succ
 | 22 | Configuration error. |
 | 30 | Unable to instantiate vault client. |
 | 31 | Unable to instantiate kubernetes client. |
+| 32 | Unable to instantiate Google Secrets Manager client. |
 | 40 | Error copying keys. |
 
 ## Kubernetes Configuration
