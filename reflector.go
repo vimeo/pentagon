@@ -156,7 +156,7 @@ func (r *Reflector) getGSMSecret(ctx context.Context, mapping Mapping) (map[stri
 		Name: mapping.GSMPath,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error accessing GSM secret %q: %w", mapping.GSMPath, err)
 	}
 
 	return map[string][]byte{mapping.SecretName: resp.Payload.Data}, nil
