@@ -2,6 +2,7 @@ package pentagon
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/hashicorp/vault/api"
 	"github.com/vimeo/pentagon/vault"
@@ -9,16 +10,24 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// DefaultNamespace is the default kubernetes namespace.
-const DefaultNamespace = "default"
+const (
+	// DefaultNamespace is the default kubernetes namespace.
+	DefaultNamespace = "default"
 
-// DefaultLabelValue is the default label value that will be applied to secrets
-// created by pentagon.
-const DefaultLabelValue = "default"
+	// DefaultLabelValue is the default label value that will be applied to secrets
+	// created by pentagon.
+	DefaultLabelValue = "default"
 
-// Config describes the configuration for vaultofsecrets
+	// VaultSourceType indicates a mapping sourced from Hashicorp Vault.
+	VaultSourceType = "vault"
+
+	// GSMSourceType indicates a mapping sourced from Google Secrets Manager.
+	GSMSourceType = "gsm"
+)
+
+// Config describes the configuration for Pentagon.
 type Config struct {
-	// VaultURL is the URL used to connect to vault.
+	// Vault is the configuration used to connect to vault.
 	Vault VaultConfig `yaml:"vault"`
 
 	// Namespace is the k8s namespace that the secrets will be created in.
@@ -51,6 +60,17 @@ func (c *Config) SetDefaults() {
 	// set all the underlying mapping engine types to their default
 	// if unspecified
 	for i, m := range c.Mappings {
+		// default to vault source type for backward compatibility
+		if m.SourceType == "" {
+			c.Mappings[i].SourceType = VaultSourceType
+		}
+
+		// copy VaultPath to Path for backward compatibility
+		if m.Path == "" && m.VaultPath != "" {
+			log.Println("WARNING: Use mapping.Path instead of mapping.VaultPath (deprecated)")
+			c.Mappings[i].Path = m.VaultPath
+		}
+
 		if m.VaultEngineType == "" {
 			c.Mappings[i].VaultEngineType = c.Vault.DefaultEngineType
 		}
@@ -64,6 +84,21 @@ func (c *Config) SetDefaults() {
 func (c *Config) Validate() error {
 	if c.Mappings == nil {
 		return fmt.Errorf("no mappings provided")
+	}
+
+	validSourceTypes := map[string]struct{}{
+		"":              {},
+		VaultSourceType: {},
+		GSMSourceType:   {},
+	}
+
+	for _, m := range c.Mappings {
+		if _, ok := validSourceTypes[m.SourceType]; !ok {
+			return fmt.Errorf("invalid source type: %+v", m.SourceType)
+		}
+		if m.Path == "" {
+			return fmt.Errorf("path should not be empty: %+v", m)
+		}
 	}
 
 	return nil
@@ -99,7 +134,16 @@ type VaultConfig struct {
 
 // Mapping is a single mapping for a vault secret to a k8s secret.
 type Mapping struct {
-	// VaultPath is the path to the vault secret.
+	// SourceType is the source of a secret: Vault or GSM. Defaults to Vault.
+	SourceType string `yaml:"sourceType"`
+
+	// Path is the path to a Vault or GSM secret.
+	// GSM secrets can use one of the following forms;
+	// - projects/*/secrets/*/versions/*
+	// - projects/*/locations/*/secrets/*/versions/*
+	Path string `yaml:"path"`
+
+	// [DEPRECATED] VaultPath is the path to a vault secret. Use Path instead.
 	VaultPath string `yaml:"vaultPath"`
 
 	// SecretName is the name of the k8s secret that the vault contents should

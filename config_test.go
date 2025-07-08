@@ -13,7 +13,11 @@ func TestSetDefaults(t *testing.T) {
 		},
 		Mappings: []Mapping{
 			{
-				VaultPath:  "vaultPath",
+				Path:       "path",
+				SecretName: "theSecret",
+			},
+			{
+				VaultPath:  "path",
 				SecretName: "theSecret",
 			},
 		},
@@ -33,6 +37,12 @@ func TestSetDefaults(t *testing.T) {
 	}
 
 	for _, m := range c.Mappings {
+		if m.SourceType != VaultSourceType {
+			t.Fatalf("source type should have defaulted to vault: %+v", m)
+		}
+		if m.Path == "" {
+			t.Fatalf("empty path for vault secret: %+v", m)
+		}
 		if m.VaultEngineType == "" {
 			t.Fatalf("empty vault engine type for mapping: %+v", m)
 		}
@@ -80,7 +90,7 @@ func TestValidate(t *testing.T) {
 	c = &Config{
 		Mappings: []Mapping{
 			{
-				VaultPath:  "foo",
+				Path:       "foo",
 				SecretName: "bar",
 			},
 		},
@@ -89,5 +99,29 @@ func TestValidate(t *testing.T) {
 	err = c.Validate()
 	if err != nil {
 		t.Fatalf("configuration should have been valid: %s", err)
+	}
+}
+
+func TestValidSourceTypes(t *testing.T) {
+	c := &Config{
+		Mappings: []Mapping{
+			{SourceType: "", Path: "foo"},
+			{SourceType: VaultSourceType, Path: "foo"},
+			{SourceType: GSMSourceType, Path: "foo"},
+		},
+	}
+	if err := c.Validate(); err != nil {
+		t.Fatalf("mappings should have been valid: %s", err)
+	}
+}
+
+func TestInvalidSourceType(t *testing.T) {
+	c := &Config{
+		Mappings: []Mapping{
+			{SourceType: "foo"},
+		},
+	}
+	if err := c.Validate(); err == nil {
+		t.Fatalf("failed to detect invalid mapping source type")
 	}
 }

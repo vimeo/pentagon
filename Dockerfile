@@ -1,11 +1,8 @@
-FROM golang:1.18.3-alpine as builder
+FROM golang:1.24-alpine AS builder
 
 RUN apk add --no-cache ca-certificates libc-dev git make gcc
 RUN adduser -D pentagon
 USER pentagon
-
-# Enable go modules
-ENV GO111MODULE on
 
 # The golang docker images configure GOPATH=/go
 RUN mkdir -p /go/src/github.com/vimeo/pentagon /go/pkg/
