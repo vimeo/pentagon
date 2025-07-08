@@ -2,6 +2,7 @@ package pentagon
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/hashicorp/vault/api"
 	"github.com/vimeo/pentagon/vault"
@@ -24,13 +25,10 @@ const (
 	GSMSourceType = "gsm"
 )
 
-// Config describes the configuration for vaultofsecrets
+// Config describes the configuration for Pentagon.
 type Config struct {
 	// Vault is the configuration used to connect to vault.
 	Vault VaultConfig `yaml:"vault"`
-
-	// GSM is the configuration used to connect to Google Secrets Manager.
-	GSM GSMConfig `yaml:"gsm"`
 
 	// Namespace is the k8s namespace that the secrets will be created in.
 	Namespace string `yaml:"namespace"`
@@ -65,6 +63,12 @@ func (c *Config) SetDefaults() {
 		// default to vault source type for backward compatibility
 		if m.SourceType == "" {
 			c.Mappings[i].SourceType = VaultSourceType
+		}
+
+		// copy VaultPath to Path for backward compatibility
+		if m.Path == "" && m.VaultPath != "" {
+			log.Println("WARNING: Use mapping.Path instead of mapping.VaultPath (deprecated)")
+			c.Mappings[i].Path = m.VaultPath
 		}
 
 		if m.VaultEngineType == "" {
@@ -125,26 +129,19 @@ type VaultConfig struct {
 	TLSConfig *api.TLSConfig `yaml:"tls"` // for other vault TLS options
 }
 
-// GSMConfig is the Google Secrets Manager configuration.
-type GSMConfig struct {
-	// Will add fields as needed.
-}
-
 // Mapping is a single mapping for a vault secret to a k8s secret.
 type Mapping struct {
 	// SourceType is the source of a secret: Vault or GSM. Defaults to Vault.
 	SourceType string `yaml:"sourceType"`
 
-	// VaultPath is the path to a vault secret.
-	VaultPath string `yaml:"vaultPath"`
-
-	// GSMPath is the full-qualified path of a GSM secret, including its name and version.
-	// For example:
+	// Path is the path to a Vault or GSM secret.
+	// GSM secrets can use one of the following forms;
 	// - projects/*/secrets/*/versions/*
-	// - projects/*/secrets/*/versions/latest
 	// - projects/*/locations/*/secrets/*/versions/*
-	// - projects/*/locations/*/secrets/*/versions/latest
-	GSMPath string `yaml:"gsmPath"`
+	Path string `yaml:"path"`
+
+	// [DEPRECATED] VaultPath is the path to a vault secret. Use Path instead.
+	VaultPath string `yaml:"vaultPath"`
 
 	// SecretName is the name of the k8s secret that the vault contents should
 	// be written to.  Note that this must be a DNS-1123-compatible name and

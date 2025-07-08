@@ -13,7 +13,11 @@ func TestSetDefaults(t *testing.T) {
 		},
 		Mappings: []Mapping{
 			{
-				VaultPath:  "vaultPath",
+				Path:       "path",
+				SecretName: "theSecret",
+			},
+			{
+				VaultPath:  "path",
 				SecretName: "theSecret",
 			},
 		},
@@ -35,6 +39,9 @@ func TestSetDefaults(t *testing.T) {
 	for _, m := range c.Mappings {
 		if m.SourceType != VaultSourceType {
 			t.Fatalf("source type should have defaulted to vault: %+v", m)
+		}
+		if m.Path == "" {
+			t.Fatalf("empty path for vault secret: %+v", m)
 		}
 		if m.VaultEngineType == "" {
 			t.Fatalf("empty vault engine type for mapping: %+v", m)
@@ -83,7 +90,7 @@ func TestValidate(t *testing.T) {
 	c = &Config{
 		Mappings: []Mapping{
 			{
-				VaultPath:  "foo",
+				Path:       "foo",
 				SecretName: "bar",
 			},
 		},

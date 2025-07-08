@@ -76,7 +76,7 @@ func (r *Reflector) Reflect(ctx context.Context, mappings []Mapping) error {
 			}
 			msg = fmt.Sprintf(
 				"reflected GSM secret %s to kubernetes secret %s (type %s)",
-				mapping.GSMPath,
+				mapping.Path,
 				mapping.SecretName,
 				mapping.SecretType,
 			)
@@ -88,7 +88,7 @@ func (r *Reflector) Reflect(ctx context.Context, mappings []Mapping) error {
 			}
 			msg = fmt.Sprintf(
 				"reflected vault secret %s to kubernetes secret %s (type %s)",
-				mapping.VaultPath,
+				mapping.Path,
 				mapping.SecretName,
 				mapping.SecretType,
 			)
@@ -117,13 +117,13 @@ func (r *Reflector) Reflect(ctx context.Context, mappings []Mapping) error {
 }
 
 func (r *Reflector) getVaultSecret(mapping Mapping) (map[string][]byte, error) {
-	secretData, err := r.vaultClient.Read(mapping.VaultPath)
+	secretData, err := r.vaultClient.Read(mapping.Path)
 	if err != nil {
-		return nil, fmt.Errorf("error reading vault key '%s': %s", mapping.VaultPath, err)
+		return nil, fmt.Errorf("error reading vault key '%s': %s", mapping.Path, err)
 	}
 
 	if secretData == nil {
-		return nil, fmt.Errorf("secret %s not found", mapping.VaultPath)
+		return nil, fmt.Errorf("secret %s not found", mapping.Path)
 	}
 
 	// convert map[string]interface{} to map[string][]byte
@@ -153,10 +153,10 @@ func (r *Reflector) getVaultSecret(mapping Mapping) (map[string][]byte, error) {
 
 func (r *Reflector) getGSMSecret(ctx context.Context, mapping Mapping) (map[string][]byte, error) {
 	resp, err := r.gsmClient.AccessSecretVersion(ctx, &secretmanagerpb.AccessSecretVersionRequest{
-		Name: mapping.GSMPath,
+		Name: mapping.Path,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error accessing GSM secret %q: %w", mapping.GSMPath, err)
+		return nil, fmt.Errorf("error accessing GSM secret %q: %w", mapping.Path, err)
 	}
 
 	return map[string][]byte{mapping.SecretName: resp.Payload.Data}, nil

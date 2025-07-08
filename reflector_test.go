@@ -50,7 +50,7 @@ func TestRefactorSimple(t *testing.T) {
 		err := r.Reflect(ctx, []Mapping{
 			{
 				SourceType:      "vault",
-				VaultPath:       "secrets/data/foo",
+				Path:            "secrets/data/foo",
 				SecretName:      "foo",
 				VaultEngineType: engineType,
 			},
@@ -99,7 +99,7 @@ func TestRefactorGSM(t *testing.T) {
 	err := r.Reflect(ctx, []Mapping{
 		{
 			SourceType: "gsm",
-			GSMPath:    "projects/foo/secrets/bar/versions/latest",
+			Path:       "projects/foo/secrets/bar/versions/latest",
 			SecretName: "foo",
 		},
 	})
@@ -159,13 +159,13 @@ func TestReflectorNoReconcile(t *testing.T) {
 		err := r.Reflect(ctx, []Mapping{
 			{
 				SourceType:      "vault",
-				VaultPath:       "secrets/data/foo1",
+				Path:            "secrets/data/foo1",
 				SecretName:      "foo1",
 				VaultEngineType: engineType,
 			},
 			{
 				SourceType:      "vault",
-				VaultPath:       "secrets/data/foo2",
+				Path:            "secrets/data/foo2",
 				SecretName:      "foo2",
 				VaultEngineType: engineType,
 			},
@@ -192,7 +192,7 @@ func TestReflectorNoReconcile(t *testing.T) {
 		err = r.Reflect(ctx, []Mapping{
 			{
 				SourceType:      "vault",
-				VaultPath:       "secrets/data/foo1",
+				Path:            "secrets/data/foo1",
 				SecretName:      "foo1",
 				VaultEngineType: engineType,
 			},
@@ -256,13 +256,13 @@ func TestReflectorWithReconcile(t *testing.T) {
 		err = r.Reflect(ctx, []Mapping{
 			{
 				SourceType:      "vault",
-				VaultPath:       "secrets/data/foo1",
+				Path:            "secrets/data/foo1",
 				SecretName:      "foo1",
 				VaultEngineType: engineType,
 			},
 			{
 				SourceType:      "vault",
-				VaultPath:       "secrets/data/foo2",
+				Path:            "secrets/data/foo2",
 				SecretName:      "foo2",
 				VaultEngineType: engineType,
 			},
@@ -293,7 +293,7 @@ func TestReflectorWithReconcile(t *testing.T) {
 		err = r.Reflect(ctx, []Mapping{
 			{
 				SourceType:      "vault",
-				VaultPath:       "secrets/data/foo1",
+				Path:            "secrets/data/foo1",
 				SecretName:      "foo1",
 				VaultEngineType: engineType,
 			},
@@ -346,7 +346,7 @@ func TestUnsupportedEngineType(t *testing.T) {
 	err := r.Reflect(ctx, []Mapping{
 		{
 			SourceType:      "vault",
-			VaultPath:       "secrets/data/foo",
+			Path:            "secrets/data/foo",
 			SecretName:      "foo",
 			VaultEngineType: vault.EngineType("unsupported"),
 		},
