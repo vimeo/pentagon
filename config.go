@@ -96,6 +96,9 @@ func (c *Config) Validate() error {
 		if _, ok := validSourceTypes[m.SourceType]; !ok {
 			return fmt.Errorf("invalid source type: %+v", m.SourceType)
 		}
+		if m.Path == "" {
+			return fmt.Errorf("path should not be empty: %+v", m)
+		}
 	}
 
 	return nil

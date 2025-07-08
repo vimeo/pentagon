@@ -105,9 +105,9 @@ func TestValidate(t *testing.T) {
 func TestValidSourceTypes(t *testing.T) {
 	c := &Config{
 		Mappings: []Mapping{
-			{SourceType: ""},
-			{SourceType: VaultSourceType},
-			{SourceType: GSMSourceType},
+			{SourceType: "", Path: "foo"},
+			{SourceType: VaultSourceType, Path: "foo"},
+			{SourceType: GSMSourceType, Path: "foo"},
 		},
 	}
 	if err := c.Validate(); err != nil {
