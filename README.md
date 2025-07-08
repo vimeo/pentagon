@@ -28,7 +28,7 @@ mappings:
     secretType: Opaque # optionally - default "Opaque" e.g.: "kubernetes.io/tls"
   # mappings from google secrets manager paths to kubernetes secret names
   - sourceType: gsm
-    gsmPath: projects/my-project/secrets/my-secret/versions/latest
+    path: projects/my-project/secrets/my-secret/versions/latest
     secretName: my-secret
 ```
 
