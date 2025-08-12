@@ -2,6 +2,7 @@ package pentagon
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -157,6 +158,18 @@ func (r *Reflector) getGSMSecret(ctx context.Context, mapping Mapping) (map[stri
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error accessing GSM secret %q: %w", mapping.Path, err)
+	}
+
+	if mapping.GSMEncodingType == GSMEncodingTypeJSON {
+		var unmarshaled map[string]json.RawMessage
+		if err := json.Unmarshal(resp.Payload.Data, &unmarshaled); err != nil {
+			return nil, fmt.Errorf("error unmarshaling GSM JSON secret %q: %w", mapping.Path, err)
+		}
+		casted := make(map[string][]byte, len(unmarshaled))
+		for k, v := range unmarshaled {
+			casted[k] = v
+		}
+		return casted, nil
 	}
 
 	return map[string][]byte{mapping.SecretName: resp.Payload.Data}, nil

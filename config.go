@@ -23,6 +23,12 @@ const (
 
 	// GSMSourceType indicates a mapping sourced from Google Secrets Manager.
 	GSMSourceType = "gsm"
+
+	// GSM encoded as just raw bytes (default)
+	GSMEncodingTypeDefault = "default"
+
+	// GSM encoded as json
+	GSMEncodingTypeJSON = "json"
 )
 
 // Config describes the configuration for Pentagon.
@@ -71,9 +77,14 @@ func (c *Config) SetDefaults() {
 			c.Mappings[i].Path = m.VaultPath
 		}
 
+		if m.GSMEncodingType == "" {
+			c.Mappings[i].GSMEncodingType = GSMEncodingTypeDefault
+		}
+
 		if m.VaultEngineType == "" {
 			c.Mappings[i].VaultEngineType = c.Vault.DefaultEngineType
 		}
+
 		if m.SecretType == "" {
 			c.Mappings[i].SecretType = corev1.SecretTypeOpaque
 		}
@@ -158,4 +169,8 @@ type Mapping struct {
 	// Vault secret.  This specifically overrides the DefaultEngineType
 	// specified in VaultConfig.
 	VaultEngineType vault.EngineType `yaml:"vaultEngineType"`
+
+	// GSMEncodingType enables the parsing of JSON secrets with more than one key-value pair when set
+	// to 'json'. For the default behavior, simple values, set to 'string'.
+	GSMEncodingType string `yaml:"gsmEncodingType"`
 }

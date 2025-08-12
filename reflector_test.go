@@ -2,7 +2,6 @@ package pentagon
 
 import (
 	"context"
-	"log"
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
@@ -42,7 +41,7 @@ func TestRefactorSimple(t *testing.T) {
 
 		r := NewReflector(
 			vaultClient,
-			gsm.NewMockGSM(),
+			gsm.NewMockGSM(nil),
 			k8sClient, DefaultNamespace,
 			DefaultLabelValue,
 		)
@@ -89,9 +88,13 @@ func TestRefactorGSM(t *testing.T) {
 	ctx := context.Background()
 	k8sClient := k8sfake.NewSimpleClientset()
 
+	gsm := gsm.NewMockGSM(map[string][]byte{
+		"projects/foo/secrets/bar/versions/latest": []byte("foo_bar_latest"),
+	})
+
 	r := NewReflector(
 		nil,
-		gsm.NewMockGSM(),
+		gsm,
 		k8sClient, DefaultNamespace,
 		DefaultLabelValue,
 	)
@@ -123,9 +126,60 @@ func TestRefactorGSM(t *testing.T) {
 		)
 	}
 
-	log.Println(string(secret.Data["foo"]))
 	if string(secret.Data["foo"]) != "foo_bar_latest" {
 		t.Fatalf("secret value does not equal foo_bar_latest: %s", string(secret.Data["foo"]))
+	}
+}
+
+func TestRefactorGSMJSON(t *testing.T) {
+	ctx := context.Background()
+	k8sClient := k8sfake.NewSimpleClientset()
+
+	gsm := gsm.NewMockGSM(map[string][]byte{
+		"projects/foo/secrets/bar/versions/latest": []byte(`{"key1": {"int": 1, "string": "hello"}, "key2": {"float": 3.14, "bool": true}}`),
+	})
+
+	r := NewReflector(
+		nil,
+		gsm,
+		k8sClient, DefaultNamespace,
+		DefaultLabelValue,
+	)
+
+	err := r.Reflect(ctx, []Mapping{
+		{
+			SourceType:      "gsm",
+			Path:            "projects/foo/secrets/bar/versions/latest",
+			GSMEncodingType: GSMEncodingTypeJSON,
+			SecretName:      "foo",
+		},
+	})
+	if err != nil {
+		t.Fatalf("reflect didn't work: %s", err)
+	}
+
+	// now get the secret out of k8s
+	secrets := k8sClient.CoreV1().Secrets(DefaultNamespace)
+
+	secret, err := secrets.Get(ctx, "foo", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("secret should be there: %s", err)
+	}
+
+	if secret.Labels[LabelKey] != DefaultLabelValue {
+		t.Fatalf(
+			"secret pentagon label should be %s is %s",
+			DefaultLabelValue,
+			secret.Labels[LabelKey],
+		)
+	}
+
+	if string(secret.Data["key1"]) != `{"int": 1, "string": "hello"}` {
+		t.Fatalf("secret value does not equal struct: %s", string(secret.Data["key1"]))
+	}
+
+	if string(secret.Data["key2"]) != `{"float": 3.14, "bool": true}` {
+		t.Fatalf("secret value does not equal struct: %s", string(secret.Data["key2"]))
 	}
 }
 
@@ -149,7 +203,7 @@ func TestReflectorNoReconcile(t *testing.T) {
 
 		r := NewReflector(
 			vaultClient,
-			gsm.NewMockGSM(),
+			gsm.NewMockGSM(nil),
 			k8sClient,
 			DefaultNamespace,
 			DefaultLabelValue,
@@ -251,7 +305,7 @@ func TestReflectorWithReconcile(t *testing.T) {
 			t.Fatalf("unable to create other-reflect secret: %s", err)
 		}
 
-		r := NewReflector(vaultClient, gsm.NewMockGSM(), k8sClient, DefaultNamespace, "test")
+		r := NewReflector(vaultClient, gsm.NewMockGSM(nil), k8sClient, DefaultNamespace, "test")
 
 		err = r.Reflect(ctx, []Mapping{
 			{
@@ -338,7 +392,7 @@ func TestUnsupportedEngineType(t *testing.T) {
 
 	r := NewReflector(
 		vaultClient,
-		gsm.NewMockGSM(),
+		gsm.NewMockGSM(nil),
 		k8sClient, DefaultNamespace,
 		DefaultLabelValue,
 	)
