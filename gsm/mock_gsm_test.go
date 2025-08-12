@@ -8,7 +8,10 @@ import (
 )
 
 func TestMockGSM(t *testing.T) {
-	m := NewMockGSM()
+	m := NewMockGSM(map[string][]byte{
+		"projects/foo/locations/bar/secrets/baz/versions/3": []byte("foo_bar_baz_3"),
+		"projects/foo/secrets/bar/versions/latest":          []byte("foo_bar_latest"),
+	})
 	ctx := context.Background()
 
 	// Test regional secrets.

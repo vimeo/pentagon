@@ -2,9 +2,7 @@ package gsm
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"strings"
 
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 	"github.com/googleapis/gax-go/v2"
@@ -19,10 +17,14 @@ type SecretAccessor interface {
 	) (*secretmanagerpb.AccessSecretVersionResponse, error)
 }
 
-type MockGSM struct{}
+type MockGSM struct {
+	Data map[string][]byte
+}
 
-func NewMockGSM() *MockGSM {
-	return &MockGSM{}
+func NewMockGSM(data map[string][]byte) *MockGSM {
+	return &MockGSM{
+		Data: data,
+	}
 }
 
 func (m *MockGSM) AccessSecretVersion(
@@ -30,25 +32,14 @@ func (m *MockGSM) AccessSecretVersion(
 	req *secretmanagerpb.AccessSecretVersionRequest,
 	opts ...gax.CallOption,
 ) (*secretmanagerpb.AccessSecretVersionResponse, error) {
-	fields := strings.Split(req.Name, "/")
-	var data string
-	if strings.Contains(req.Name, "locations") {
-		if len(fields) != 8 {
-			return nil, errors.New("invalid regional secret path")
-		}
-		// project, location, secret, version
-		data = fmt.Sprintf("%s_%s_%s_%s", fields[1], fields[3], fields[5], fields[7])
-	} else {
-		if len(fields) != 6 {
-			return nil, errors.New("invalid secret path")
-		}
-		// project, secret, version
-		data = fmt.Sprintf("%s_%s_%s", fields[1], fields[3], fields[5])
+	secretVal, ok := m.Data[req.Name]
+	if !ok {
+		return nil, fmt.Errorf("secret %q not found", req.Name)
 	}
 
 	return &secretmanagerpb.AccessSecretVersionResponse{
 		Payload: &secretmanagerpb.SecretPayload{
-			Data: []byte(data),
+			Data: secretVal,
 		},
 	}, nil
 }
