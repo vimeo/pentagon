@@ -24,7 +24,7 @@ func allEngineTest(t *testing.T, subTest func(testing.TB, vault.EngineType)) {
 	}
 }
 
-func TestRefactorSimple(t *testing.T) {
+func TestReflectorSimple(t *testing.T) {
 	allEngineTest(t, func(t testing.TB, engineType vault.EngineType) {
 		ctx := context.Background()
 
@@ -84,7 +84,7 @@ func TestRefactorSimple(t *testing.T) {
 	})
 }
 
-func TestRefactorGSM(t *testing.T) {
+func TestReflectorGSM(t *testing.T) {
 	ctx := context.Background()
 	k8sClient := k8sfake.NewSimpleClientset()
 
@@ -131,7 +131,7 @@ func TestRefactorGSM(t *testing.T) {
 	}
 }
 
-func TestRefactorGSMJSON(t *testing.T) {
+func TestReflectorGSMJSON(t *testing.T) {
 	ctx := context.Background()
 	k8sClient := k8sfake.NewSimpleClientset()
 
