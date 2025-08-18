@@ -167,6 +167,11 @@ func (r *Reflector) getGSMSecret(ctx context.Context, mapping Mapping) (map[stri
 		}
 		casted := make(map[string][]byte, len(unmarshaled))
 		for k, v := range unmarshaled {
+			var stringVal string
+			if err := json.Unmarshal(v, &stringVal); err == nil {
+				casted[k] = []byte(stringVal)
+				continue
+			}
 			casted[k] = v
 		}
 		return casted, nil
