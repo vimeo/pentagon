@@ -1,6 +1,7 @@
 package pentagon
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -167,7 +168,24 @@ func (r *Reflector) getGSMSecret(ctx context.Context, mapping Mapping) (map[stri
 		}
 		casted := make(map[string][]byte, len(unmarshaled))
 		for k, v := range unmarshaled {
-			casted[k] = v
+			trimmedV := bytes.TrimSpace(v)
+
+			// Check if the value is enclosed in quotes.
+			if len(trimmedV) >= 2 && trimmedV[0] == '"' && trimmedV[len(trimmedV)-1] == '"' {
+				var strValue string
+				// First, try to unmarshal as a proper JSON string.
+				if err := json.Unmarshal(trimmedV, &strValue); err == nil {
+					casted[k] = []byte(strValue)
+				} else {
+					// If unmarshaling fails, it means the string is not a valid JSON string
+					// (e.g., it contains an invalid escape sequence like `\w`).
+					// we fall back to manually stripping the outer quotes.
+					casted[k] = trimmedV[1 : len(trimmedV)-1]
+				}
+			} else {
+				// If it's not a quoted value (e.g., number, boolean, object), pass it through.
+				casted[k] = v
+			}
 		}
 		return casted, nil
 	}
