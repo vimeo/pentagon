@@ -177,7 +177,12 @@ func (r *Reflector) getGSMSecret(ctx context.Context, mapping Mapping) (map[stri
 		return casted, nil
 	}
 
-	return map[string][]byte{mapping.SecretName: resp.Payload.Data}, nil
+	keyName := mapping.GSMSecretKeyValue
+	if keyName == "" {
+		keyName = mapping.SecretName
+	}
+
+	return map[string][]byte{keyName: resp.Payload.Data}, nil
 }
 
 func (r *Reflector) createK8sSecret(ctx context.Context, mapping Mapping, data map[string][]byte) error {

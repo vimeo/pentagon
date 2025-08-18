@@ -173,4 +173,9 @@ type Mapping struct {
 	// GSMEncodingType enables the parsing of JSON secrets with more than one key-value pair when set
 	// to 'json'. For the default behavior, simple values, set to 'string'.
 	GSMEncodingType string `yaml:"gsmEncodingType"`
+
+	// GSMSecretKeyValue allows you to specify the value of the Kubernetes key to
+	// use for this secret's value in cases where gsmEncodingType is *not* json.  If
+	// this is unset, the key name will default to the value of secretName.
+	GSMSecretKeyValue string `yaml:"gsmSecretKeyValue"`
 }

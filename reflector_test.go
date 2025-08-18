@@ -102,9 +102,10 @@ func TestReflectorGSM(t *testing.T) {
 
 	err := r.Reflect(ctx, []Mapping{
 		{
-			SourceType: "gsm",
-			Path:       "projects/foo/secrets/bar/versions/latest",
-			SecretName: "foo",
+			SourceType:        "gsm",
+			Path:              "projects/foo/secrets/bar/versions/latest",
+			SecretName:        "foo",
+			GSMSecretKeyValue: "foo-key",
 		},
 	})
 	if err != nil {
@@ -127,7 +128,7 @@ func TestReflectorGSM(t *testing.T) {
 		)
 	}
 
-	if string(secret.Data["foo"]) != "foo_bar_latest" {
+	if string(secret.Data["foo-key"]) != "foo_bar_latest" {
 		t.Fatalf("secret value does not equal foo_bar_latest: %s", string(secret.Data["foo"]))
 	}
 }
