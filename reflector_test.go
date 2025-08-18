@@ -2,6 +2,7 @@ package pentagon
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
@@ -101,9 +102,10 @@ func TestReflectorGSM(t *testing.T) {
 
 	err := r.Reflect(ctx, []Mapping{
 		{
-			SourceType: "gsm",
-			Path:       "projects/foo/secrets/bar/versions/latest",
-			SecretName: "foo",
+			SourceType:        "gsm",
+			Path:              "projects/foo/secrets/bar/versions/latest",
+			SecretName:        "foo",
+			GSMSecretKeyValue: "foo-key",
 		},
 	})
 	if err != nil {
@@ -126,12 +128,12 @@ func TestReflectorGSM(t *testing.T) {
 		)
 	}
 
-	if string(secret.Data["foo"]) != "foo_bar_latest" {
+	if string(secret.Data["foo-key"]) != "foo_bar_latest" {
 		t.Fatalf("secret value does not equal foo_bar_latest: %s", string(secret.Data["foo"]))
 	}
 }
 
-func TestReflectorGSMJSON(t *testing.T) {
+func TestReflectorGSMJSONStruct(t *testing.T) {
 	ctx := context.Background()
 	k8sClient := k8sfake.NewSimpleClientset()
 
@@ -174,12 +176,79 @@ func TestReflectorGSMJSON(t *testing.T) {
 		)
 	}
 
-	if string(secret.Data["key1"]) != `{"int": 1, "string": "hello"}` {
-		t.Fatalf("secret value does not equal struct: %s", string(secret.Data["key1"]))
+	data := map[string]any{}
+	if err := json.Unmarshal(secret.Data["key1"], &data); err != nil {
+		t.Fatalf("error unmarshaling secret data for key1: %s", err)
+	}
+	if data["int"] != float64(1) {
+		t.Errorf("secret data for key1 does not contain expected int: %+v", data["int"])
+	}
+	if data["string"] != "hello" {
+		t.Errorf("secret data for key1 does not contain expected string: %v", data["string"])
 	}
 
-	if string(secret.Data["key2"]) != `{"float": 3.14, "bool": true}` {
-		t.Fatalf("secret value does not equal struct: %s", string(secret.Data["key2"]))
+	data = map[string]any{}
+	if err := json.Unmarshal(secret.Data["key2"], &data); err != nil {
+		t.Fatalf("error unmarshaling secret data for key1: %s", err)
+	}
+
+	if data["float"] != 3.14 {
+		t.Errorf("secret data for key2 does not contain expected float: %v", data["float"])
+	}
+	if data["bool"] != true {
+		t.Errorf("secret data for key2 does not contain expected bool: %v", data["bool"])
+	}
+}
+
+func TestReflectorGSMJSONUnwrap(t *testing.T) {
+	ctx := context.Background()
+	k8sClient := k8sfake.NewSimpleClientset()
+
+	gsm := gsm.NewMockGSM(map[string][]byte{
+		"projects/foo/secrets/bar/versions/latest": []byte(`{"key1": 1, "key2": "val2\nval3"}`),
+	})
+
+	r := NewReflector(
+		nil,
+		gsm,
+		k8sClient, DefaultNamespace,
+		DefaultLabelValue,
+	)
+
+	err := r.Reflect(ctx, []Mapping{
+		{
+			SourceType:      "gsm",
+			Path:            "projects/foo/secrets/bar/versions/latest",
+			GSMEncodingType: GSMEncodingTypeJSON,
+			SecretName:      "foo",
+		},
+	})
+	if err != nil {
+		t.Fatalf("reflect didn't work: %s", err)
+	}
+
+	// now get the secret out of k8s
+	secrets := k8sClient.CoreV1().Secrets(DefaultNamespace)
+
+	secret, err := secrets.Get(ctx, "foo", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("secret should be there: %s", err)
+	}
+
+	if secret.Labels[LabelKey] != DefaultLabelValue {
+		t.Fatalf(
+			"secret pentagon label should be %s is %s",
+			DefaultLabelValue,
+			secret.Labels[LabelKey],
+		)
+	}
+
+	if string(secret.Data["key1"]) != "1" {
+		t.Fatalf("secret value does not equal bare int: %s", string(secret.Data["key1"]))
+	}
+
+	if string(secret.Data["key2"]) != "val2\nval3" {
+		t.Fatalf("secret value does not equal string: %s", string(secret.Data["key2"]))
 	}
 }
 

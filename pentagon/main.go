@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/url"
 	"os"
@@ -45,7 +44,7 @@ func main() {
 		os.Exit(10)
 	}
 
-	configFile, err := ioutil.ReadFile(os.Args[1])
+	configFile, err := os.ReadFile(os.Args[1])
 	if err != nil {
 		log.Printf("error opening configuration file: %s", err)
 		os.Exit(20)

@@ -167,12 +167,22 @@ func (r *Reflector) getGSMSecret(ctx context.Context, mapping Mapping) (map[stri
 		}
 		casted := make(map[string][]byte, len(unmarshaled))
 		for k, v := range unmarshaled {
+			var stringVal string
+			if err := json.Unmarshal(v, &stringVal); err == nil {
+				casted[k] = []byte(stringVal)
+				continue
+			}
 			casted[k] = v
 		}
 		return casted, nil
 	}
 
-	return map[string][]byte{mapping.SecretName: resp.Payload.Data}, nil
+	keyName := mapping.GSMSecretKeyValue
+	if keyName == "" {
+		keyName = mapping.SecretName
+	}
+
+	return map[string][]byte{keyName: resp.Payload.Data}, nil
 }
 
 func (r *Reflector) createK8sSecret(ctx context.Context, mapping Mapping, data map[string][]byte) error {

@@ -2,10 +2,10 @@
 [![GoDoc](https://godoc.org/github.com/vimeo/pentagon?status.svg)](https://godoc.org/github.com/vimeo/pentagon) [![Go Report Card](https://goreportcard.com/badge/github.com/vimeo/pentagon)](https://goreportcard.com/report/github.com/vimeo/pentagon) 
 
 # Pentagon
-Pentagon is a small application designed to run as a Kubernetes CronJob to periodically copy secrets stored in [Vault](https://www.vaultproject.io) or Google Secrets Manager into equivalent [Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/), keeping them synchronized.  Naturally, this should be used with care as "standard" Kubernetes Secrets are simply obfuscated as base64-encoded strings.  However, one can and should use more secure methods of securing secrets including Google's [KMS](https://cloud.google.com/kubernetes-engine/docs/how-to/encrypting-secrets) and restricting roles and service accounts appropriately.
+Pentagon is a small application designed to run as a Kubernetes CronJob to periodically copy secrets stored in [Vault](https://www.vaultproject.io) or [Google Secret Manager](https://cloud.google.com/security/products/secret-manager) into equivalent [Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/), keeping them synchronized.  Naturally, this should be used with care as "standard" Kubernetes Secrets are simply obfuscated as base64-encoded strings.  However, one can and should use more secure methods of securing secrets including Google's [KMS](https://cloud.google.com/kubernetes-engine/docs/how-to/encrypting-secrets) and restricting roles and service accounts appropriately.
 
-## Why not just query Vault?
-That's a good question.  If you have a highly-available Vault setup that is stable and performant and you're able to modify your applications to query Vault, that's a completely reasonable approach to take.  If you don't have such a setup, Pentagon provides a way to cache things securely in Kubernetes secrets which can then be provided to applications without directly introducing a Vault dependency.
+## Why not just query Vault or Google Secret Manager?
+That's a good question.  If you have a highly-available Vault setup that is stable and performant and you're able to modify your applications to query Vault, that's a completely reasonable approach to take.  Similarly, if you are able to modify your application to query Google Secret Manager, that's an entirely valid solution.  If you don't have such a setup, Pentagon provides a way to cache things securely in Kubernetes secrets which can then be provided to applications without directly introducing a dependency on Vault or Google Secret Manager.
 
 ## Configuration
 Pentagon requires a YAML configuration file, the path to which should be passed as the first and only argument to the application.  It is recommended that you store this configuration in a [ConfigMap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/) and reference it in the CronJob specification.  A sample configuration follows:
@@ -81,6 +81,11 @@ Notice that the `data` object has the `foo` key embedded directly.  Alternativel
 ```
 
 Notice the extra `data` element nested inside the outer `data`.  Vault secrets engines can be mounted at arbitrary paths and it does not appear to be possible to reliably detect which engine was used in the API response directly.  In order to properly unwrap the secret data,indicate either `kv` or `kv-v2` as the `vaultEngineType` in the configuration.  In the common case of using only one secrets engine,  simply define the `defaultEngineType` in the `vault` configuration block and the mapping-level `vaultEngineType` will inherit the default.  For compatibility, the unset default value defaults to `kv`.  Note that this differs from the current default that Vault itself uses for the key/value secrets engine.
+
+## Special Things about Google Secret Manager
+Google Secret Manager's API simply returns arbitrary bytes as the value of a secret, making no assumptions about its encoding.  Kubernetes Secrets, on the other hand, can contain multiple key/value pairs.  If you would like a single Google Secret Manager Secret to unwrap into multiple key/value pairs in the Kubernetes Secret, add `gsmEncoding: "json"` to the mapping value.  Then store a JSON document in Google Secret Manager with JSON that will successfully unmarshal to a `map[string]any`.  The key in that map will be used as the key of the Kubernetes Secret.  If that value is a string or number, the value will be stored without any quoting.  If the value is a JSON object or array it will be stored directly as the string serialization of that structure.
+
+In cases where `gsmEncoding` is not set to json, the key's value will default to the name of the secret (`secretName` in the mapping).  If you would like to override this, set `gsmSecretKeyValue` to your preferred key.
 
 ## Return Values
 The application will return 0 on success (when all keys were copied/updated successfully).  A complete list of all possible return values follows:
