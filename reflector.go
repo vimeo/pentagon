@@ -178,12 +178,12 @@ func (r *Reflector) getGSMSecret(ctx context.Context, mapping Mapping) (map[stri
 					casted[k] = []byte(strValue)
 				} else {
 					// If unmarshaling fails, it means the string is not a valid JSON string
-					// (e.g., it contains an invalid escape sequence like `\w`).
+					// or it was not a json string at all
 					// we fall back to manually stripping the outer quotes.
 					casted[k] = trimmedV[1 : len(trimmedV)-1]
 				}
 			} else {
-				// If it's not a quoted value (e.g., number, boolean, object), pass it through.
+				// If it's not a quoted value, pass it through.
 				casted[k] = v
 			}
 		}
