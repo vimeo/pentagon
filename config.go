@@ -3,6 +3,8 @@ package pentagon
 import (
 	"fmt"
 	"log"
+	"path"
+	"regexp"
 
 	"github.com/hashicorp/vault/api"
 	"github.com/vimeo/pentagon/vault"
@@ -29,7 +31,14 @@ const (
 
 	// GSM encoded as json
 	GSMEncodingTypeJSON = "json"
+
+	// when a version isn't specified, just default to the latest
+	gsmLatestSuffix = "/versions/latest"
 )
+
+// regex to match the version suffix at the end of a GSM secret path.  Note that
+// this can be a version number, or a version alias.
+var gsmVersionSuffix = regexp.MustCompile(`/versions/[\w-]+$`)
 
 // Config describes the configuration for Pentagon.
 type Config struct {
@@ -87,6 +96,10 @@ func (c *Config) SetDefaults() {
 
 		if m.SecretType == "" {
 			c.Mappings[i].SecretType = corev1.SecretTypeOpaque
+		}
+
+		if m.SourceType == GSMSourceType && !gsmVersionSuffix.MatchString(m.Path) {
+			c.Mappings[i].Path = path.Join(m.Path, gsmLatestSuffix)
 		}
 	}
 }

@@ -30,6 +30,9 @@ mappings:
   - sourceType: gsm
     path: projects/my-project/secrets/my-secret/versions/latest
     secretName: my-secret
+  - sourceType: gsm
+    path: projects/my-project/secrets/my-other-secret
+    secretName: defaults-to-latest-version
 ```
 
 ### Labels and Reconciliation
@@ -86,6 +89,8 @@ Notice the extra `data` element nested inside the outer `data`.  Vault secrets e
 Google Secret Manager's API simply returns arbitrary bytes as the value of a secret, making no assumptions about its encoding.  Kubernetes Secrets, on the other hand, can contain multiple key/value pairs.  If you would like a single Google Secret Manager Secret to unwrap into multiple key/value pairs in the Kubernetes Secret, add `gsmEncoding: "json"` to the mapping value.  Then store a JSON document in Google Secret Manager with JSON that will successfully unmarshal to a `map[string]any`.  The key in that map will be used as the key of the Kubernetes Secret.  If that value is a string or number, the value will be stored without any quoting.  If the value is a JSON object or array it will be stored directly as the string serialization of that structure.
 
 In cases where `gsmEncoding` is not set to json, the key's value will default to the name of the secret (`secretName` in the mapping).  If you would like to override this, set `gsmSecretKeyValue` to your preferred key.
+
+Also, Google Secret Manager Secrets have versions which can be specified in the configuration mapping's `Path`.  If you do not specify a specific version (with the `/versions/...` suffix), `/versions/latest` will automatically be appended to the path.
 
 ## Return Values
 The application will return 0 on success (when all keys were copied/updated successfully).  A complete list of all possible return values follows:

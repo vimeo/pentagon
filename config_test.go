@@ -20,6 +20,31 @@ func TestSetDefaults(t *testing.T) {
 				VaultPath:  "path",
 				SecretName: "theSecret",
 			},
+			{
+				SourceType: GSMSourceType,
+				Path:       "projects/my-project/secrets/my-secret/versions/latest",
+				SecretName: "latestSecret",
+			},
+			{
+				SourceType: GSMSourceType,
+				Path:       "projects/my-project/secrets/my-secret/versions/3",
+				SecretName: "3secret",
+			},
+			{
+				SourceType: GSMSourceType,
+				Path:       "projects/my-project/secrets/my-secret/versions/prod-alias",
+				SecretName: "prodAliasSecret",
+			},
+			{
+				SourceType: GSMSourceType,
+				Path:       "projects/my-project/secrets/my-secret",
+				SecretName: "noVersionSecret",
+			},
+			{
+				SourceType: GSMSourceType,
+				Path:       "projects/my-project/secrets/my-secret/",
+				SecretName: "noVersionSecretWithTrailingSlash",
+			},
 		},
 	}
 
@@ -36,10 +61,19 @@ func TestSetDefaults(t *testing.T) {
 		t.Fatalf("unexpected default engine type: %s", c.Vault.DefaultEngineType)
 	}
 
+	if c.Mappings[0].SourceType != VaultSourceType {
+		t.Fatalf("source type should have defaulted to vault: %+v", c.Mappings[0].SourceType)
+	}
+
+	if c.Mappings[1].SourceType != VaultSourceType {
+		t.Fatalf("source type should have defaulted to vault: %+v", c.Mappings[1].SourceType)
+	}
+
+	if c.Mappings[0].Path != "path" {
+		t.Fatalf("path should be unchanged, is %s", c.Mappings[0].Path)
+	}
+
 	for _, m := range c.Mappings {
-		if m.SourceType != VaultSourceType {
-			t.Fatalf("source type should have defaulted to vault: %+v", m)
-		}
 		if m.Path == "" {
 			t.Fatalf("empty path for vault secret: %+v", m)
 		}
@@ -49,6 +83,26 @@ func TestSetDefaults(t *testing.T) {
 		if m.SecretType == "" {
 			t.Fatalf("empty Kubernetes secret type for mapping: %+v", m)
 		}
+	}
+
+	if c.Mappings[2].Path != "projects/my-project/secrets/my-secret/versions/latest" {
+		t.Fatalf("latest GSM path should be unchanged, is %s", c.Mappings[2].Path)
+	}
+
+	if c.Mappings[3].Path != "projects/my-project/secrets/my-secret/versions/3" {
+		t.Fatalf("versioned GSM path should be unchanged, is %s", c.Mappings[3].Path)
+	}
+
+	if c.Mappings[4].Path != "projects/my-project/secrets/my-secret/versions/prod-alias" {
+		t.Fatalf("aliased GSM path should be unchanged, is %s", c.Mappings[4].Path)
+	}
+
+	if c.Mappings[5].Path != "projects/my-project/secrets/my-secret/versions/latest" {
+		t.Fatalf("GSM path without version should have latest suffix, is %s", c.Mappings[5].Path)
+	}
+
+	if c.Mappings[6].Path != "projects/my-project/secrets/my-secret/versions/latest" {
+		t.Fatalf("GSM path without version (but with trailing slash) should have latest suffix, is %s", c.Mappings[6].Path)
 	}
 }
 
