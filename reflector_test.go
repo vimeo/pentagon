@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	"maps"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,11 +69,10 @@ func TestReflectorSimple(t *testing.T) {
 			t.Fatalf("secret should be there: %s", err)
 		}
 
-		if secret.Labels[LabelKey] != DefaultLabelValue {
-			t.Fatalf(
-				"secret pentagon label should be %s is %s",
-				DefaultLabelValue,
-				secret.Labels[LabelKey],
+		// no additional labels provided. check for default
+		if !maps.Equal(secret.Labels, map[string]string{LabelKey: DefaultLabelValue}) {
+			t.Fatalf("labels do not match: got %v, want %v", secret.Labels,
+				map[string]string{LabelKey: DefaultLabelValue},
 			)
 		}
 
@@ -81,6 +82,116 @@ func TestReflectorSimple(t *testing.T) {
 
 		if string(secret.Data["bar"]) != "baz" {
 			t.Fatalf("secret value does not equal baz: %s", string(secret.Data["bar"]))
+		}
+	})
+}
+
+func TestReflectorAdditionalSecretLabelsVault(t *testing.T) {
+	allEngineTest(t, func(t testing.TB, engineType vault.EngineType) {
+		ctx := context.Background()
+
+		k8sClient := k8sfake.NewSimpleClientset()
+		vaultClient := vault.NewMock(map[string]vault.EngineType{
+			"secrets": engineType,
+		})
+
+		data := map[string]interface{}{
+			"foo": "bar",
+			"bar": "baz",
+		}
+		vaultClient.Write("secrets/data/foo", data)
+
+		r := NewReflector(
+			vaultClient,
+			gsm.NewMockGSM(nil),
+			k8sClient, DefaultNamespace,
+			DefaultLabelValue,
+		)
+
+		err := r.Reflect(ctx, []Mapping{
+			{
+				SourceType:             "vault",
+				Path:                   "secrets/data/foo",
+				SecretName:             "foo",
+				VaultEngineType:        engineType,
+				AdditionalSecretLabels: map[string]string{"secret": "foo"},
+			},
+		})
+		if err != nil {
+			t.Fatalf("reflect didn't work: %s", err)
+		}
+
+		// now get the secret out of k8s
+		secrets := k8sClient.CoreV1().Secrets(DefaultNamespace)
+
+		secret, err := secrets.Get(ctx, "foo", metav1.GetOptions{})
+		if err != nil {
+			t.Fatalf("secret should be there: %s", err)
+		}
+
+		// check additional labels and default
+		if !maps.Equal(secret.Labels, map[string]string{LabelKey: DefaultLabelValue, "secret": "foo"}) {
+			t.Fatalf("labels do not match: got %v, want %v", secret.Labels,
+				map[string]string{LabelKey: DefaultLabelValue, "secret": "foo"},
+			)
+		}
+
+		if string(secret.Data["foo"]) != "bar" {
+			t.Fatalf("secret value does not equal bar: %s", string(secret.Data["foo"]))
+		}
+
+		if string(secret.Data["bar"]) != "baz" {
+			t.Fatalf("secret value does not equal baz: %s", string(secret.Data["bar"]))
+		}
+	})
+}
+
+func TestReflectorDefaultLabelOverwriteVault(t *testing.T) {
+	allEngineTest(t, func(t testing.TB, engineType vault.EngineType) {
+		ctx := context.Background()
+
+		k8sClient := k8sfake.NewSimpleClientset()
+		vaultClient := vault.NewMock(map[string]vault.EngineType{
+			"secrets": engineType,
+		})
+
+		data := map[string]interface{}{
+			"foo": "bar",
+			"bar": "baz",
+		}
+		vaultClient.Write("secrets/data/foo", data)
+
+		r := NewReflector(
+			vaultClient,
+			gsm.NewMockGSM(nil),
+			k8sClient, DefaultNamespace,
+			DefaultLabelValue,
+		)
+
+		err := r.Reflect(ctx, []Mapping{
+			{
+				SourceType:             "vault",
+				Path:                   "secrets/data/foo",
+				SecretName:             "foo",
+				VaultEngineType:        engineType,
+				AdditionalSecretLabels: map[string]string{LabelKey: "wrong-value"},
+			},
+		})
+		if err != nil {
+			t.Fatalf("reflect didn't work: %s", err)
+		}
+
+		// now get the secret out of k8s
+		secrets := k8sClient.CoreV1().Secrets(DefaultNamespace)
+
+		secret, err := secrets.Get(ctx, "foo", metav1.GetOptions{})
+		if err != nil {
+			t.Fatalf("secret should be there: %s", err)
+		}
+
+		// ensure default `pentagon` label was not overwritten
+		if string(secret.Labels[LabelKey]) != DefaultLabelValue {
+			t.Fatalf("default pentagon label should be %s is %s", DefaultLabelValue, secret.Labels[LabelKey])
 		}
 	})
 }
@@ -120,16 +231,110 @@ func TestReflectorGSM(t *testing.T) {
 		t.Fatalf("secret should be there: %s", err)
 	}
 
-	if secret.Labels[LabelKey] != DefaultLabelValue {
-		t.Fatalf(
-			"secret pentagon label should be %s is %s",
-			DefaultLabelValue,
-			secret.Labels[LabelKey],
+	// no additional labels provided. check for default
+	if !maps.Equal(secret.Labels, map[string]string{LabelKey: DefaultLabelValue}) {
+		t.Fatalf("labels do not match: got %v, want %v", secret.Labels,
+			map[string]string{LabelKey: DefaultLabelValue},
 		)
 	}
 
 	if string(secret.Data["foo-key"]) != "foo_bar_latest" {
 		t.Fatalf("secret value does not equal foo_bar_latest: %s", string(secret.Data["foo"]))
+	}
+}
+
+func TestReflectorAdditionalSecretLabelsGSM(t *testing.T) {
+	ctx := context.Background()
+	k8sClient := k8sfake.NewSimpleClientset()
+
+	gsm := gsm.NewMockGSM(map[string][]byte{
+		"projects/foo/secrets/bar/versions/latest": []byte("foo_bar_latest"),
+	})
+
+	r := NewReflector(
+		nil,
+		gsm,
+		k8sClient, DefaultNamespace,
+		DefaultLabelValue,
+	)
+
+	err := r.Reflect(ctx, []Mapping{
+		{
+			SourceType:             "gsm",
+			Path:                   "projects/foo/secrets/bar/versions/latest",
+			SecretName:             "foo",
+			GSMSecretKeyValue:      "foo-key",
+			AdditionalSecretLabels: map[string]string{"secret": "foo"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("reflect didn't work: %s", err)
+	}
+
+	// now get the secret out of k8s
+	secrets := k8sClient.CoreV1().Secrets(DefaultNamespace)
+
+	secret, err := secrets.Get(ctx, "foo", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("secret should be there: %s", err)
+	}
+
+	// check additional labels and default
+	if !maps.Equal(secret.Labels, map[string]string{LabelKey: DefaultLabelValue, "secret": "foo"}) {
+		t.Fatalf("labels do not match: got %v, want %v", secret.Labels,
+			map[string]string{LabelKey: DefaultLabelValue, "secret": "foo"},
+		)
+	}
+
+	// ensure default `pentagon` label was no overwritten
+	if string(secret.Labels[LabelKey]) != DefaultLabelValue {
+		t.Fatalf("default pentagon label should be %s is %s", DefaultLabelValue, secret.Labels[LabelKey])
+	}
+
+	if string(secret.Data["foo-key"]) != "foo_bar_latest" {
+		t.Fatalf("secret value does not equal foo_bar_latest: %s", string(secret.Data["foo"]))
+	}
+}
+
+func TestReflectorDefaultLabelOverwriteGSM(t *testing.T) {
+	ctx := context.Background()
+	k8sClient := k8sfake.NewSimpleClientset()
+
+	gsm := gsm.NewMockGSM(map[string][]byte{
+		"projects/foo/secrets/bar/versions/latest": []byte("foo_bar_latest"),
+	})
+
+	r := NewReflector(
+		nil,
+		gsm,
+		k8sClient, DefaultNamespace,
+		DefaultLabelValue,
+	)
+
+	err := r.Reflect(ctx, []Mapping{
+		{
+			SourceType:             "gsm",
+			Path:                   "projects/foo/secrets/bar/versions/latest",
+			SecretName:             "foo",
+			GSMSecretKeyValue:      "foo-key",
+			AdditionalSecretLabels: map[string]string{LabelKey: "wrong-value"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("reflect didn't work: %s", err)
+	}
+
+	// now get the secret out of k8s
+	secrets := k8sClient.CoreV1().Secrets(DefaultNamespace)
+
+	secret, err := secrets.Get(ctx, "foo", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("secret should be there: %s", err)
+	}
+
+	// ensure default `pentagon` label was not overwritten
+	if string(secret.Labels[LabelKey]) != DefaultLabelValue {
+		t.Fatalf("default pentagon label should be %s is %s", DefaultLabelValue, secret.Labels[LabelKey])
 	}
 }
 
@@ -314,10 +519,11 @@ func TestReflectorNoReconcile(t *testing.T) {
 		// and not get reconciled because we're using the default label value.
 		err = r.Reflect(ctx, []Mapping{
 			{
-				SourceType:      "vault",
-				Path:            "secrets/data/foo1",
-				SecretName:      "foo1",
-				VaultEngineType: engineType,
+				SourceType:             "vault",
+				Path:                   "secrets/data/foo1",
+				SecretName:             "foo1",
+				VaultEngineType:        engineType,
+				AdditionalSecretLabels: map[string]string{},
 			},
 		})
 		if err != nil {

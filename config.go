@@ -191,4 +191,8 @@ type Mapping struct {
 	// use for this secret's value in cases where gsmEncodingType is *not* json.  If
 	// this is unset, the key name will default to the value of secretName.
 	GSMSecretKeyValue string `yaml:"gsmSecretKeyValue"`
+
+	// AdditionalSecretLabels allows you to specify the additional labels that will be
+	// added to the created Kubernetes secret.
+	AdditionalSecretLabels map[string]string `yaml:"additionalSecretLabels"`
 }
