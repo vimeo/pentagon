@@ -48,7 +48,7 @@ func init() {
 // I'm only implementing two methods because that's all I need.
 type Logical interface {
 	Read(string) (*api.Secret, error)
-	Write(string, map[string]interface{}) (*api.Secret, error)
+	Write(string, map[string]any) (*api.Secret, error)
 }
 
 // Mock is a mock vault of secrets.
@@ -84,7 +84,7 @@ func (m *Mock) Read(path string) (*api.Secret, error) {
 // Write writes secrets into the mock vault.
 func (m *Mock) Write(
 	path string,
-	data map[string]interface{},
+	data map[string]any,
 ) (*api.Secret, error) {
 
 	var secret *api.Secret
@@ -99,7 +99,7 @@ func (m *Mock) Write(
 		}
 	case EngineTypeKeyValueV2:
 		secret = &api.Secret{
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"data": data,
 			},
 		}
