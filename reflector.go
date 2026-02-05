@@ -137,7 +137,7 @@ func (r *Reflector) getVaultSecret(mapping Mapping) (map[string][]byte, error) {
 		}
 	case vault.EngineTypeKeyValueV2:
 		// there's an extra level of wrapping with the v2 kv secrets engine
-		if unwrapped, ok := secretData.Data["data"].(map[string]interface{}); ok {
+		if unwrapped, ok := secretData.Data["data"].(map[string]any); ok {
 			k8sSecretData, err = r.castData(unwrapped)
 			if err != nil {
 				return nil, fmt.Errorf("error casting data: %s", err)
@@ -236,7 +236,7 @@ func (r *Reflector) reconcile(
 
 // castData turns vault map[string]interface{}'s into map[string][]byte's
 func (r *Reflector) castData(
-	innerData map[string]interface{},
+	innerData map[string]any,
 ) (map[string][]byte, error) {
 
 	k8sSecretData := make(map[string][]byte, len(innerData))

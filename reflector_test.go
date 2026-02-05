@@ -34,7 +34,7 @@ func TestReflectorSimple(t *testing.T) {
 			"secrets": engineType,
 		})
 
-		data := map[string]interface{}{
+		data := map[string]any{
 			"foo": "bar",
 			"bar": "baz",
 		}
@@ -261,7 +261,7 @@ func TestReflectorNoReconcile(t *testing.T) {
 			"secrets": engineType,
 		})
 
-		data := map[string]interface{}{
+		data := map[string]any{
 			"foo": "bar",
 			"bar": "baz",
 		}
@@ -345,7 +345,7 @@ func TestReflectorWithReconcile(t *testing.T) {
 			"secrets": engineType,
 		})
 
-		data := map[string]interface{}{
+		data := map[string]any{
 			"foo": "bar",
 			"bar": "baz",
 		}
@@ -454,7 +454,7 @@ func TestUnsupportedEngineType(t *testing.T) {
 		"secrets": vault.EngineTypeKeyValueV2,
 	})
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"foo": "bar",
 	}
 	vaultClient.Write("secrets/data/foo", data)

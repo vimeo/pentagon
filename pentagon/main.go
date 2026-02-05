@@ -194,7 +194,7 @@ func setVaultTokenViaGCP(vaultClient *api.Client, role string) error {
 
 	vaultResp, err := vaultClient.Logical().Write(
 		"auth/gcp/login",
-		map[string]interface{}{
+		map[string]any{
 			"role": role,
 			"jwt":  jwt,
 		},

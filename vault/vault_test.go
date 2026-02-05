@@ -9,12 +9,12 @@ import (
 func TestRoundtrip(t *testing.T) {
 	for testName, itbl := range map[string]struct {
 		key   string
-		data  map[string]interface{}
+		data  map[string]any
 		check func(testing.TB, *api.Secret, error)
 	}{
 		"simple-kv-1": {
 			key: "kv1/test",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"blah": "blah",
 			},
 			check: func(t testing.TB, s *api.Secret, err error) {
@@ -29,7 +29,7 @@ func TestRoundtrip(t *testing.T) {
 		},
 		"simple-kv-2": {
 			key: "kv2/test",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"blah": "blah",
 			},
 			check: func(t testing.TB, s *api.Secret, err error) {
@@ -37,7 +37,7 @@ func TestRoundtrip(t *testing.T) {
 					t.Fatalf("errored: %s", err)
 				}
 
-				if w, ok := s.Data["data"].(map[string]interface{}); ok {
+				if w, ok := s.Data["data"].(map[string]any); ok {
 					if w["blah"] != "blah" {
 						t.Fatal("data was not equal!")
 					}
