@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"maps"
 
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 	corev1 "k8s.io/api/core/v1"
@@ -186,11 +187,18 @@ func (r *Reflector) getGSMSecret(ctx context.Context, mapping Mapping) (map[stri
 }
 
 func (r *Reflector) createK8sSecret(ctx context.Context, mapping Mapping, data map[string][]byte) error {
+	labels := make(map[string]string)
+	if mapping.AdditionalSecretLabels != nil {
+		labels = maps.Clone(mapping.AdditionalSecretLabels)
+	}
+
+	labels[LabelKey] = r.labelValue
+
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      mapping.SecretName,
 			Namespace: r.k8sNamespace,
-			Labels:    map[string]string{LabelKey: r.labelValue},
+			Labels:    labels,
 		},
 		Data: data,
 		Type: mapping.SecretType,

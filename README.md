@@ -26,6 +26,9 @@ mappings:
     secretName: k8s-secretname
     vaultEngineType: # optionally "kv" or "kv-v2" to override the defaultEngineType specified above
     secretType: Opaque # optionally - default "Opaque" e.g.: "kubernetes.io/tls"
+    additionalSecretLabels: # optionally add labels to the secret
+      environment: dev
+      team: core-services
   # mappings from google secrets manager paths to kubernetes secret names
   - sourceType: gsm
     path: projects/my-project/secrets/my-secret/versions/latest
@@ -33,10 +36,15 @@ mappings:
   - sourceType: gsm
     path: projects/my-project/secrets/my-other-secret
     secretName: defaults-to-latest-version
+    additionalSecretLabels:
+      environment: dev
+      team: core-services
 ```
 
 ### Labels and Reconciliation
 By default, Pentagon will add a [metadata label](https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#ObjectMeta) with the key `pentagon` and the value `default`.  At the least, this helps identify Pentagon as the creator and maintainer of the secret.
+
+You can also specify custom labels for each secret mapping using the `additionalSecretLabels` filed. These labels will be added to the Kubernetes secret alongside the required `pentagon` label. 
 
 If you set the `label` configuration parameter, you can control the value of the label, allowing multiple Pentagon instances to exist without stepping on each other.  Setting a non-default `label` also enables reconciliation which will cleanup any secrets that were created by Pentagon with a matching label, but are no longer present in the `mappings` configuration.  This provides a simple way to ensure that old secret data does not remain present in your system after its time has passed.
 
